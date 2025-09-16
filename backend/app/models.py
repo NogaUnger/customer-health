@@ -51,6 +51,7 @@ class EventType(PyEnum):
     invoice_late = "invoice_late"
 
 
+from sqlalchemy import Integer
 # -----------------------------------------------------------------------------
 # Customer
 # -----------------------------------------------------------------------------
@@ -72,19 +73,13 @@ class Customer(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, index=True)
     segment = Column(Enum(Segment), nullable=False)
+    # NEW: estimated seat count (users/licenses) for normalization
+    seats = Column(Integer, nullable=False, default=25)  # sensible default for tests/older rows
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     active = Column(Boolean, default=True, nullable=False)
-
-    # denormalized total (0..100)
     health_score = Column(Float, default=0.0, nullable=False)
 
-    # relationship to events
-    events = relationship(
-        "Event",
-        back_populates="customer",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
+    events = relationship("Event", back_populates="customer", cascade="all, delete-orphan", passive_deletes=True)
 
 
 # -----------------------------------------------------------------------------
