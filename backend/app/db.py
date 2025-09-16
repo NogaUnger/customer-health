@@ -30,7 +30,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 # -----------------------------------------------------------------------------
 # Decide which database URL to use
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------e-------------------------
 def _resolve_database_url() -> str:
     """
     Resolve the database URL from env, defaulting to local SQLite for dev/tests.
@@ -42,7 +42,8 @@ def _resolve_database_url() -> str:
         return url.strip()
     # Fallback for local usage (tests or running without compose)
     # Creates/uses a file `app.db` in the working directory.
-    return "sqlite:///./app.db"
+    # TODO: insert better error (maybe make class)
+    return "error: could not find DB"
 
 
 SQLALCHEMY_DATABASE_URL: str = _resolve_database_url()
