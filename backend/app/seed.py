@@ -17,23 +17,39 @@ def _segment_for(name: str) -> Segment:
     return [Segment.enterprise, Segment.smb, Segment.startup][h % 3]
 
 
+def _default_seats(seg: Segment) -> int:
+    """
+    Assign a realistic seat count by segment.
+    Enterprise >> SMB > Startup (rough ranges).
+    """
+    if seg == Segment.enterprise:
+        return randint(200, 1200)
+    if seg == Segment.smb:
+        return randint(10, 100)
+    # startup
+    return randint(3, 30)
+
+
 def seed_if_needed(db: Session):
     """
-    Seed ~60 customers with ~90 days of realistic events.
-    - Ensures unique company names per run (Faker.unique).
-    - Ensures segment is deterministic by name (no same-name/different-segment issue).
-    - Skips seeding if there are already >= 50 customers.
+    Seed ~60 customers with seats and ~90 days of realistic events.
+
+    Guards:
+      - If there are already >=50 customers, skip (prevents duplicate seeding).
     """
-    # Don't reseed if we already have a decent dataset
     if db.query(Customer).count() >= 50:
         return
 
-    # --- Create customers (unique names, deterministic segments) ---
+    # --- Create customers (unique names, deterministic segments, size by segment) ---
     customers = []
     for _ in range(60):
-        name = fake.unique.company()          # per-run uniqueness
-        seg = _segment_for(name)              # stable segment assignment
-        c = Customer(name=name, segment=seg)
+        name = fake.unique.company()           # per-run uniqueness (no dup names in this seeding session)
+        seg = _segment_for(name)               # stable segment by name
+        c = Customer(
+            name=name,
+            segment=seg,
+            seats=_default_seats(seg),         # size-aware scoring uses this
+        )
         db.add(c)
         customers.append(c)
 
