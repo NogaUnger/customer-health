@@ -19,9 +19,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    working_dir: /code                 # ensure pytest runs from /code
+    working_dir: /code
     environment:
-      PYTHONPATH: /code                # make /code importable -> 'import app'
+      PYTHONPATH: /code
       DATABASE_URL: postgresql+psycopg://app:app@db:5432/app
       SEED_ON_START: "true"
     ports:
