@@ -6,7 +6,7 @@
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; }
     h1 { margin: 0 0 12px 0; }
-    .toolbar { display: flex; gap: 8px; margin: 8px 0 16px; align-items: center; }
+    .toolbar { display: flex; gap: 8px; margin: 8px 0 16px; align-items: center; flex-wrap: wrap; }
     .filter { padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px; background:#fff; cursor:pointer; }
     .filter.active { border-color:#333; font-weight:600; }
     .refresh { margin-left: auto; }
@@ -23,6 +23,7 @@
     .small { color: #666; font-size: 12px; }
     .score { width: 80px; }
     .muted { color:#777; font-size:12px; }
+    @media (max-width: 640px) { .refresh { order: 2; margin-left: 0; } }
   </style>
 </head>
 <body>
@@ -30,9 +31,9 @@
 
   <div class="toolbar">
     <button class="filter active" data-filter="all">All</button>
-    <button class="filter" data-filter="risk">At Risk (&lt;40)</button>
-    <button class="filter" data-filter="watch">Watch (40–79)</button>
-    <button class="filter" data-filter="healthy">Healthy (≥80)</button>
+    <button class="filter" data-filter="risk">At Risk (bottom 25%)</button>
+    <button class="filter" data-filter="watch">Watch (middle 50%)</button>
+    <button class="filter" data-filter="healthy">Healthy (top 25%)</button>
     <span id="count" class="muted"></span>
     <button id="refresh" class="refresh">Refresh</button>
   </div>
@@ -52,6 +53,7 @@
     let customersCache = [];
     let currentFilter = 'all';
 
+    // Color badge by absolute quality so users still recognize great/poor scores at a glance.
     function badgeClass(score){ return score >= 80 ? 'healthy' : score >= 40 ? 'watch' : 'risk'; }
     function scoreBadge(score) {
       const span = document.createElement('span');
@@ -60,50 +62,61 @@
       return span;
     }
     function labelize(key) { return key.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()); }
-    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
-    function matchesFilter(score) {
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+
+    // --- Relative thresholds (percentiles) ---
+    function thresholds() {
+      const scores = customersCache.map(c => Number(c.health_score || 0)).sort((a,b)=>a-b);
+      if (!scores.length) return { q25: 40, q75: 80 };
+      const idx25 = Math.floor(0.25 * (scores.length - 1));
+      const idx75 = Math.floor(0.75 * (scores.length - 1));
+      return { q25: scores[idx25], q75: scores[idx75] };
+    }
+
+    function matchesFilter(score, q) {
       if (currentFilter === 'all') return true;
-      if (currentFilter === 'risk') return score < 40;
-      if (currentFilter === 'watch') return score >= 40 && score < 80;
-      if (currentFilter === 'healthy') return score >= 80;
+      if (currentFilter === 'risk')   return score < q.q25;
+      if (currentFilter === 'watch')  return score >= q.q25 && score < q.q75;
+      if (currentFilter === 'healthy')return score >= q.q75;
       return true;
     }
 
     function render() {
       const tbody = document.getElementById('tbody');
       tbody.innerHTML = '';
+      if (!customersCache.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td'); td.colSpan = 3; td.textContent = 'No data.';
+        tr.appendChild(td); tbody.appendChild(tr);
+        return;
+      }
 
-      // sort ASC by score
+      const q = thresholds();
+
+      // sort ASC by score (lowest first)
       const data = customersCache.slice().sort((a,b) => (a.health_score ?? 0) - (b.health_score ?? 0));
 
-      // counts for the small legend
+      // counts by relative buckets
       const counts = { all: data.length, risk:0, watch:0, healthy:0 };
-      data.forEach(c => {
+      for (const c of data) {
         const s = Number(c.health_score || 0);
-        if (s < 40) counts.risk++; else if (s < 80) counts.watch++; else counts.healthy++;
-      });
-
+        if (s < q.q25) counts.risk++; else if (s < q.q75) counts.watch++; else counts.healthy++;
+      }
       document.getElementById('count').textContent =
-        `Showing ${currentFilter === 'all' ? counts.all : counts[currentFilter]} of ${counts.all}`;
+        `Showing ${currentFilter==='all'?counts.all:counts[currentFilter]} of ${counts.all} (q25=${q.q25.toFixed(1)}, q75=${q.q75.toFixed(1)})`;
 
       for (const c of data) {
         const score = Number(c.health_score || 0);
-        if (!matchesFilter(score)) continue;
+        if (!matchesFilter(score, q)) continue;
 
         const tr = document.createElement('tr');
         tr.dataset.id = c.id;
 
-        const tdScore = document.createElement('td');
-        tdScore.appendChild(scoreBadge(score));
-        tr.appendChild(tdScore);
-
-        const tdName = document.createElement('td');
-        tdName.textContent = c.name;
-        tr.appendChild(tdName);
-
-        const tdSeg = document.createElement('td');
-        tdSeg.textContent = c.segment;
-        tr.appendChild(tdSeg);
+        const tdScore = document.createElement('td'); tdScore.appendChild(scoreBadge(score)); tr.appendChild(tdScore);
+        const tdName  = document.createElement('td'); tdName.textContent = c.name; tr.appendChild(tdName);
+        const tdSeg   = document.createElement('td'); tdSeg.textContent = c.segment; tr.appendChild(tdSeg);
 
         tr.addEventListener('click', () => toggleDetails(tr, c.id, c.name));
         tbody.appendChild(tr);
@@ -131,8 +144,7 @@
 
       const detailsTr = document.createElement('tr');
       detailsTr.className = 'details-row';
-      const td = document.createElement('td');
-      td.colSpan = 3;
+      const td = document.createElement('td'); td.colSpan = 3;
       td.innerHTML = `<div class="small">Loading breakdown for <strong>${escapeHtml(name)}</strong>…</div>`;
       detailsTr.appendChild(td);
       row.insertAdjacentElement('afterend', detailsTr);
