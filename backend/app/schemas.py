@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -26,20 +26,18 @@ class EventOut(EventCreate):
     id: int
     customer_id: int
     ts: datetime
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class CustomerBase(BaseModel):
     name: str
     segment: Segment
 
-class CustomerOut(CustomerBase):
+class CustomerOut(BaseModel):
+    name: str
+    segment: Segment
     id: int
     health_score: float = Field(0, ge=0, le=100)
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class HealthBreakdown(BaseModel):
     total: float
