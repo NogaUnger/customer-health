@@ -59,7 +59,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Use a short-lived session for seeding so it does not interfere with requests.
         with SessionLocal() as db:
             seed_if_needed(db)
-
+    print("✅ Customer Health API started")
+    print("➡  Docs:      http://localhost:8000/docs")
+    print("➡  Dashboard: http://localhost:8000/api/dashboard")
     # Hand control back to FastAPI to serve requests.
     yield
 
@@ -70,6 +72,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 # App instance and router registration
 # -----------------------------------------------------------------------------
 app = FastAPI(title="Customer Health API", lifespan=lifespan)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def index() -> str:
+    return """
+    <h1>Customer Health API</h1>
+    <ul>
+      <li><a href="/docs">Swagger API docs</a></li>
+      <li><a href="/api/dashboard">Simple dashboard</a></li>
+    </ul>
+    """
 
 # Mount versioned API routers. They expose:
 # - GET  /api/customers
