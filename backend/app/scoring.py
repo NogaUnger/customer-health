@@ -1,9 +1,187 @@
-from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
-from .models import Customer, Event, EventType
+"""
+scoring.py
+==========
+Segment/size-aware scoring: 0–100 health with explainable factors.
 
-# We compute a 0–100 score from weighted sub-scores.
+Research-backed design:
+- Login frequency (30d) → engagement. Normalize by seats and segment targets.
+- Feature breadth (30d) → value breadth. Size-agnostic (share of core features).
+- Support tickets (30d) → friction. Normalize per 100 seats.
+- Invoice timeliness (90d) → commercial risk. Paid vs late ratio.
+- API usage trend (7d vs prev 7d) → short-term momentum (ratio-based).
+
+All factors return 0..100. WEIGHTS sum to 1.0.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from typing import Dict, Any
+
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from .models import Event, EventType, Customer, Segment
+
+
+def clamp(x: float, lo: float = 0.0, hi: float = 100.0) -> float:
+    return max(lo, min(hi, x))
+
+
+# ----------------------- segment parameters ----------------------- #
+# Targets/penalties tuned per segment. Adjust as you learn from data.
+SEGMENT_PARAMS = {
+    Segment.enterprise: {
+        "login_target_per_seat_30d": 3.0,   # larger orgs: diverse roles, lower per-seat login target
+        "ticket_penalty_per_100_seats": 15.0,
+    },
+    Segment.smb: {
+        "login_target_per_seat_30d": 6.0,
+        "ticket_penalty_per_100_seats": 20.0,
+    },
+    Segment.startup: {
+        "login_target_per_seat_30d": 6.0,   # agile teams; similar to SMB for monthly cadence
+        "ticket_penalty_per_100_seats": 20.0,
+    },
+}
+
+CORE_FEATURES = 10  # how many core features you track in logs
+
+
+def _get_ctx(db: Session, customer_id: int) -> tuple[Segment, int]:
+    """Fetch segment and seats with safe fallbacks."""
+    c: Customer | None = db.get(Customer, customer_id)
+    if not c:
+        # Let API layer 404 the customer; scoring uses defaults if called directly in tests.
+        return Segment.smb, 25
+    seg = c.segment
+    seats = c.seats or 25
+    return seg, max(1, seats)
+
+
+# ---------------------------- factors ----------------------------- #
+def _login_frequency_score(db: Session, customer_id: int, now: datetime, seg: Segment, seats: int) -> float:
+    """
+    Logins in 30d, normalized by seat count and segment-specific target.
+
+    Score = (logins_30d / (target_per_seat * seats)) * 100, clamped.
+    """
+    since = now - timedelta(days=30)
+    logins = (
+        db.query(Event)
+        .filter(Event.customer_id == customer_id, Event.type == EventType.login, Event.ts >= since)
+        .count()
+    )
+    target = SEGMENT_PARAMS.get(seg, SEGMENT_PARAMS[Segment.smb])["login_target_per_seat_30d"] * seats
+    if target <= 0:
+        target = 1.0
+    return clamp((logins / target) * 100.0)
+
+
+def _feature_adoption_score(db: Session, customer_id: int, now: datetime) -> float:
+    """
+    Distinct features in 30d / CORE_FEATURES.
+    Size-agnostic by design: breadth of usage, not volume.
+    """
+    since = now - timedelta(days=30)
+    distinct = (
+        db.query(Event.feature_key)
+        .filter(
+            Event.customer_id == customer_id,
+            Event.type == EventType.feature_use,
+            Event.ts >= since,
+            Event.feature_key.isnot(None),
+        )
+        .distinct()
+        .count()
+    )
+    return clamp((distinct / CORE_FEATURES) * 100.0)
+
+
+def _support_ticket_score(db: Session, customer_id: int, now: datetime, seg: Segment, seats: int) -> float:
+    """
+    Tickets in 30d, normalized per 100 seats, then linear penalty by segment.
+    """
+    since = now - timedelta(days=30)
+    tickets = (
+        db.query(Event)
+        .filter(Event.customer_id == customer_id, Event.type == EventType.support_ticket_opened, Event.ts >= since)
+        .count()
+    )
+    per_100 = tickets / max(1.0, seats / 100.0)
+    penalty = SEGMENT_PARAMS.get(seg, SEGMENT_PARAMS[Segment.smb])["ticket_penalty_per_100_seats"]
+    return clamp(100.0 - penalty * per_100)
+
+
+def _invoice_timeliness_score(db: Session, customer_id: int, now: datetime) -> float:
+    """
+    Paid vs late in 90d window; neutral 50 if no signal.
+    """
+    since = now - timedelta(days=90)
+    paid = (
+        db.query(Event)
+        .filter(Event.customer_id == customer_id, Event.type == EventType.invoice_paid, Event.ts >= since)
+        .count()
+    )
+    late = (
+        db.query(Event)
+        .filter(Event.customer_id == customer_id, Event.type == EventType.invoice_late, Event.ts >= since)
+        .count()
+    )
+    total = paid + late
+    if total == 0:
+        return 50.0
+    return clamp((paid / total) * 100.0)
+
+
+def _api_usage_trend_score(db: Session, customer_id: int, now: datetime) -> float:
+    """
+    Ratio-based 7d vs prev 7d; size-agnostic.
+    """
+    last_7 = now - timedelta(days=7)
+    prev_14 = now - timedelta(days=14)
+
+    last = (
+        db.query(func.coalesce(func.sum(Event.value), 0))
+        .filter(
+            Event.customer_id == customer_id,
+            Event.type == EventType.api_call,
+            Event.ts >= last_7,
+            Event.value.isnot(None),
+        )
+        .scalar()
+        or 0
+    )
+
+    prev = (
+        db.query(func.coalesce(func.sum(Event.value), 0))
+        .filter(
+            Event.customer_id == customer_id,
+            Event.type == EventType.api_call,
+            Event.ts < last_7,
+            Event.ts >= prev_14,
+            Event.value.isnot(None),
+        )
+        .scalar()
+        or 0
+    )
+
+    if prev == 0 and last == 0:
+        return 50.0
+    if prev == 0 and last > 0:
+        return 100.0
+    if prev > 0 and last == 0:
+        return 0.0
+
+    ratio = last / prev
+    if ratio >= 1.0:
+        return clamp(50.0 + min(50.0, (ratio - 1.0) * 50.0))
+    else:
+        return clamp(50.0 * ratio)
+
+
+# ----------------------------- weights ----------------------------- #
+# Keep weights consistent across segments for now (you can also vary by seg).
 WEIGHTS = {
     "login_frequency": 0.25,
     "feature_adoption": 0.25,
@@ -12,86 +190,22 @@ WEIGHTS = {
     "api_usage_trend": 0.15,
 }
 
-def clamp(x, lo=0.0, hi=100.0): 
-    return max(lo, min(hi, x))
 
-def _login_frequency(db: Session, customer_id: int) -> float:
-    # last 30 days: 20+ logins ⇒ 100; 0 ⇒ 0 (linear)
-    since = datetime.utcnow() - timedelta(days=30)
-    count = db.query(func.count(Event.id)).filter(
-        and_(Event.customer_id == customer_id,
-             Event.type == EventType.login,
-             Event.ts >= since)
-    ).scalar() or 0
-    return clamp(min(count, 20) / 20 * 100)
+# ----------------------- public API -------------------------------- #
+def compute_health_breakdown(db: Session, customer_id: int, now: datetime | None = None) -> Dict[str, Any]:
+    """
+    Compute total and per-factor sub-scores with segment/size normalization.
+    """
+    now = now or datetime.utcnow()
+    seg, seats = _get_ctx(db, customer_id)
 
-def _feature_adoption(db: Session, customer_id: int) -> float:
-    # number of distinct features used in last 30d; 6+ ⇒ 100
-    since = datetime.utcnow() - timedelta(days=30)
-    distinct = db.query(Event.feature_key).filter(
-        and_(Event.customer_id == customer_id,
-             Event.type == EventType.feature_use,
-             Event.ts >= since,
-             Event.feature_key.isnot(None))
-    ).distinct().count()
-    return clamp(min(distinct, 6) / 6 * 100)
-
-def _support_ticket_volume(db: Session, customer_id: int) -> float:
-    # more tickets => lower score; 0 tickets=100; 6+ tickets=0
-    since = datetime.utcnow() - timedelta(days=30)
-    tickets = db.query(func.count(Event.id)).filter(
-        and_(Event.customer_id == customer_id,
-             Event.type == EventType.support_ticket_opened,
-             Event.ts >= since)
-    ).scalar() or 0
-    return clamp(100 - min(tickets, 6) / 6 * 100)
-
-def _invoice_timeliness(db: Session, customer_id: int) -> float:
-    # invoice_paid adds, invoice_late subtracts; map to 0–100
-    since = datetime.utcnow() - timedelta(days=90)
-    paid = db.query(func.count(Event.id)).filter(
-        and_(Event.customer_id == customer_id,
-             Event.type == EventType.invoice_paid,
-             Event.ts >= since)
-    ).scalar() or 0
-    late = db.query(func.count(Event.id)).filter(
-        and_(Event.customer_id == customer_id,
-             Event.type == EventType.invoice_late,
-             Event.ts >= since)
-    ).scalar() or 0
-    raw = 70 + 15*min(paid, 2) - 25*min(late, 2)
-    return clamp(raw)
-
-def _api_usage_trend(db: Session, customer_id: int) -> float:
-    # simplistic trend: last 7d vs previous 7d api_call totals
-    now = datetime.utcnow()
-    w1 = db.query(func.sum(Event.value)).filter(
-        and_(Event.customer_id == customer_id,
-             Event.type == EventType.api_call,
-             Event.ts >= now - timedelta(days=7))
-    ).scalar() or 0
-    w0 = db.query(func.sum(Event.value)).filter(
-        and_(Event.customer_id == customer_id,
-             Event.type == EventType.api_call,
-             Event.ts <  now - timedelta(days=7),
-             Event.ts >= now - timedelta(days=14))
-    ).scalar() or 0
-    if w0 == 0 and w1 == 0:
-        return 50.0
-    if w0 == 0 and w1 > 0:
-        return 100.0
-    change = (w1 - w0) / max(w0, 1)
-    # map change: -100% ⇒ 0, 0% ⇒ 60, +100% ⇒ 100 (clamped)
-    score = 60 + 40 * max(-1.0, min(1.0, change))
-    return clamp(score)
-
-def compute_health_breakdown(db: Session, customer_id: int) -> dict:
-    pieces = {
-        "login_frequency": _login_frequency(db, customer_id),
-        "feature_adoption": _feature_adoption(db, customer_id),
-        "support_ticket_volume": _support_ticket_volume(db, customer_id),
-        "invoice_timeliness": _invoice_timeliness(db, customer_id),
-        "api_usage_trend": _api_usage_trend(db, customer_id),
+    factors = {
+        "login_frequency": _login_frequency_score(db, customer_id, now, seg, seats),
+        "feature_adoption": _feature_adoption_score(db, customer_id, now),
+        "support_ticket_volume": _support_ticket_score(db, customer_id, now, seg, seats),
+        "invoice_timeliness": _invoice_timeliness_score(db, customer_id, now),
+        "api_usage_trend": _api_usage_trend_score(db, customer_id, now),
     }
-    total = sum(pieces[k] * WEIGHTS[k] for k in pieces)
-    return {"total": round(total, 2), "factors": pieces}
+
+    total = sum(WEIGHTS[k] * v for k, v in factors.items())
+    return {"total": clamp(total), "factors": factors}
