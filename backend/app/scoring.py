@@ -32,18 +32,19 @@ def clamp(x: float, lo: float = 0.0, hi: float = 100.0) -> float:
 # Targets/penalties tuned per segment. Adjust as you learn from data.
 SEGMENT_PARAMS = {
     Segment.enterprise: {
-        "login_target_per_seat_30d": 3.0,   # larger orgs: diverse roles, lower per-seat login target
-        "ticket_penalty_per_100_seats": 15.0,
+        "login_target_per_seat_30d": 0.15,  # was 3.0 — much more realistic at enterprise scale
+        "ticket_penalty_per_100_seats": 10.0,
     },
     Segment.smb: {
-        "login_target_per_seat_30d": 6.0,
-        "ticket_penalty_per_100_seats": 20.0,
+        "login_target_per_seat_30d": 0.8,   # was 6.0
+        "ticket_penalty_per_100_seats": 6.0,
     },
     Segment.startup: {
-        "login_target_per_seat_30d": 6.0,   # agile teams; similar to SMB for monthly cadence
-        "ticket_penalty_per_100_seats": 20.0,
+        "login_target_per_seat_30d": 1.2,   # was 6.0
+        "ticket_penalty_per_100_seats": 6.0,
     },
 }
+
 
 CORE_FEATURES = 10  # how many core features you track in logs
 
