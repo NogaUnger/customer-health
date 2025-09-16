@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Customer Health Dashboard</title>
+  <style>
+    body { font-family: system-ui, Arial; margin: 24px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: 8px 12px; border-bottom: 1px solid #ddd; text-align: left; }
+    .pill { padding: 2px 8px; border-radius: 999px; display: inline-block; font-size: 12px; }
+    .good { background: #e6f7e7; }
+    .warn { background: #fff5e6; }
+    .bad  { background: #fdeaea; }
+  </style>
+</head>
+<body>
+  <h1>Customer Health</h1>
+  <p><em>Click a customer to view their health breakdown.</em></p>
+  <table id="tbl"><thead>
+    <tr><th>ID</th><th>Name</th><th>Segment</th><th>Health</th></tr>
+  </thead><tbody></tbody></table>
+  <pre id="detail" style="margin-top:24px; background:#f7f7f7; padding:12px; display:none;"></pre>
+
+  <script>
+    async function load() {
+      const r = await fetch('/api/customers');
+      const rows = await r.json();
+      const tbody = document.querySelector('#tbl tbody');
+      tbody.innerHTML = '';
+      for (const c of rows) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${c.id}</td>
+          <td><a href="#" data-id="${c.id}">${c.name}</a></td>
+          <td>${c.segment}</td>
+          <td>${pill(c.health_score)}</td>`;
+        tbody.appendChild(tr);
+        tr.querySelector('a').onclick = async (e) => {
+          e.preventDefault();
+          const id = e.target.dataset.id;
+          const rr = await fetch(`/api/customers/${id}/health`);
+          const d = await rr.json();
+          const pre = document.getElementById('detail');
+          pre.style.display='block';
+          pre.textContent = JSON.stringify(d, null, 2);
+        };
+      }
+    }
+    function pill(score){
+      let cls='good';
+      if (score < 70) cls='warn';
+      if (score < 40) cls='bad';
+      return `<span class="pill ${cls}">${score.toFixed(1)}</span>`;
+    }
+    load();
+  </script>
+</body>
+</html>
