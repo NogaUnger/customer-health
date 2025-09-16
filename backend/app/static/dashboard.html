@@ -4,54 +4,139 @@
   <meta charset="utf-8" />
   <title>Customer Health Dashboard</title>
   <style>
-    body { font-family: system-ui, Arial; margin: 24px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; }
+    h1 { margin: 0 0 12px 0; }
+    .refresh { margin-bottom: 12px; }
     table { border-collapse: collapse; width: 100%; }
-    th, td { padding: 8px 12px; border-bottom: 1px solid #ddd; text-align: left; }
-    .pill { padding: 2px 8px; border-radius: 999px; display: inline-block; font-size: 12px; }
-    .good { background: #e6f7e7; }
-    .warn { background: #fff5e6; }
-    .bad  { background: #fdeaea; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+    th { text-align: left; font-size: 14px; color: #555; }
+    tr:hover { background: #fafafa; cursor: pointer; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+    .badge.healthy { background: #e6f4ea; color: #187a2f; }
+    .badge.watch { background: #fff4e5; color: #8a5a00; }
+    .badge.risk { background: #fdecea; color: #b3261e; }
+    .details-row td { background: #f8f9fb; }
+    .factor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 8px; }
+    .small { color: #666; font-size: 12px; }
+    .score { width: 80px; }
   </style>
 </head>
 <body>
   <h1>Customer Health</h1>
-  <p><em>Click a customer to view their health breakdown.</em></p>
-  <table id="tbl"><thead>
-    <tr><th>ID</th><th>Name</th><th>Segment</th><th>Health</th></tr>
-  </thead><tbody></tbody></table>
-  <pre id="detail" style="margin-top:24px; background:#f7f7f7; padding:12px; display:none;"></pre>
+  <button id="refresh" class="refresh">Refresh</button>
+
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th class="score">Score</th>
+        <th>Name</th>
+        <th>Segment</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
 
   <script>
+    function badgeClass(score){ return score >= 80 ? 'healthy' : score >= 40 ? 'watch' : 'risk'; }
+    function scoreBadge(score) {
+      const span = document.createElement('span');
+      span.className = 'badge ' + badgeClass(score);
+      span.textContent = Number(score).toFixed(1);
+      return span;
+    }
+    function labelize(key) { return key.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()); }
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+
     async function load() {
-      const r = await fetch('/api/customers');
-      const rows = await r.json();
-      const tbody = document.querySelector('#tbl tbody');
+      const btn = document.getElementById('refresh');
+      btn.disabled = true; btn.textContent = 'Loading...';
+      const tbody = document.getElementById('tbody');
       tbody.innerHTML = '';
-      for (const c of rows) {
+
+      try {
+        const res = await fetch('/api/customers');
+        const customers = await res.json();
+
+        // 1) sort by score ASC (lowest first)
+        customers.sort((a,b) => (a.health_score ?? 0) - (b.health_score ?? 0));
+
+        // 2) render rows
+        for (const c of customers) {
+          const tr = document.createElement('tr');
+          tr.dataset.id = c.id;
+
+          const tdScore = document.createElement('td');
+          tdScore.appendChild(scoreBadge(Number(c.health_score || 0)));
+          tr.appendChild(tdScore);
+
+          const tdName = document.createElement('td');
+          tdName.textContent = c.name;
+          tr.appendChild(tdName);
+
+          const tdSeg = document.createElement('td');
+          tdSeg.textContent = c.segment;
+          tr.appendChild(tdSeg);
+
+          // On click: toggle a details row inserted right after this row
+          tr.addEventListener('click', () => toggleDetails(tr, c.id, c.name));
+          tbody.appendChild(tr);
+        }
+      } catch (e) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${c.id}</td>
-          <td><a href="#" data-id="${c.id}">${c.name}</a></td>
-          <td>${c.segment}</td>
-          <td>${pill(c.health_score)}</td>`;
+        const td = document.createElement('td');
+        td.colSpan = 3;
+        td.textContent = 'Failed to load customers.';
+        tr.appendChild(td);
         tbody.appendChild(tr);
-        tr.querySelector('a').onclick = async (e) => {
-          e.preventDefault();
-          const id = e.target.dataset.id;
-          const rr = await fetch(`/api/customers/${id}/health`);
-          const d = await rr.json();
-          const pre = document.getElementById('detail');
-          pre.style.display='block';
-          pre.textContent = JSON.stringify(d, null, 2);
-        };
+      } finally {
+        btn.disabled = false; btn.textContent = 'Refresh';
       }
     }
-    function pill(score){
-      let cls='good';
-      if (score < 70) cls='warn';
-      if (score < 40) cls='bad';
-      return `<span class="pill ${cls}">${score.toFixed(1)}</span>`;
+
+    async function toggleDetails(row, id, name) {
+      const next = row.nextElementSibling;
+
+      // If the next row is already this row's details → remove (toggle off)
+      if (next && next.classList.contains('details-row')) {
+        next.remove();
+        return;
+      }
+
+      // Insert a placeholder details row directly below the clicked row
+      const detailsTr = document.createElement('tr');
+      detailsTr.className = 'details-row';
+      const td = document.createElement('td');
+      td.colSpan = 3;
+      td.innerHTML = `<div class="small">Loading breakdown for <strong>${escapeHtml(name)}</strong>…</div>`;
+      detailsTr.appendChild(td);
+      row.insertAdjacentElement('afterend', detailsTr);
+
+      try {
+        const res = await fetch(`/api/customers/${id}/health`);
+        const breakdown = await res.json();
+        const factors = breakdown.factors || {};
+
+        td.innerHTML = `
+          <div><strong>${escapeHtml(name)}</strong> — Total:
+            <span class="badge ${badgeClass(breakdown.total)}">${Number(breakdown.total).toFixed(1)}</span>
+          </div>
+          <div class="factor-grid">
+            ${Object.entries(factors).map(([k,v]) => `
+              <div>
+                <div class="small">${escapeHtml(labelize(k))}</div>
+                <div><span class="badge ${badgeClass(v)}">${Number(v).toFixed(1)}</span></div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        td.innerHTML = `<div class="small" style="color:#b3261e">Failed to load breakdown.</div>`;
+      }
     }
+
+    document.getElementById('refresh').addEventListener('click', load);
     load();
   </script>
 </body>
