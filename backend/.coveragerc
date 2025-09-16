@@ -1,0 +1,9 @@
+[run]
+source = app
+omit =
+    app/seed.py
+    app/static/*
+    # (optionally) app/main.py  ; uncomment if you want to exclude wiring/HTML serving too
+
+[report]
+show_missing = true
