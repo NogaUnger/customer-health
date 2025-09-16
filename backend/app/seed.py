@@ -138,17 +138,49 @@ def seed_if_needed(db: Session):
                 db.add(Event(customer_id=c.id, type=EventType.support_ticket_opened,
                              ts=day + timedelta(hours=randint(0, 23))))
 
-            # invoices monthly
-            if day.day == 1:
-                if random() < paid_prob:
-                    db.add(Event(customer_id=c.id, type=EventType.invoice_paid, ts=day))
-                else:
-                    db.add(Event(customer_id=c.id, type=EventType.invoice_late, ts=day))
+            # ---- invoices (monthly with jitter) ----
+# Allow a single monthly invoice around day 1 ±2 days.
+# Also, with a small chance, emit an off-cycle invoice mid-month.
+if 'last_invoice_month' not in locals():
+    last_invoice_month = None
+    offcycle_emitted = set()
 
-            day += timedelta(days=1)
+month_key = (day.year, day.month)
 
-        # cleanup temp
-        delattr(c, "_profile")
+# monthly invoice once per month (around the 1st, ±2 days)
+if last_invoice_month != month_key and day.day in (30, 31, 1, 2, 3):
+    # jitter chance: only issue once per month
+    issue = False
+    if day.day == 1:
+        issue = True
+    elif day.day in (30, 31, 2, 3) and random() < 0.35:
+        issue = True
+
+    if issue:
+        # slight jitter to paid probability per invoice
+        jitter = (random() - 0.5) * 0.20  # ±0.10
+        this_paid_prob = max(0.05, min(0.99, paid_prob + jitter))
+        if random() < this_paid_prob:
+            db.add(Event(customer_id=c.id, type=EventType.invoice_paid, ts=day))
+        else:
+            db.add(Event(customer_id=c.id, type=EventType.invoice_late, ts=day))
+        last_invoice_month = month_key
+
+    # off-cycle invoice (rare, mid-month)
+    if 14 <= day.day <= 16 and month_key not in offcycle_emitted and random() < 0.15:
+        jitter = (random() - 0.5) * 0.20
+        this_paid_prob = max(0.05, min(0.99, paid_prob + jitter))
+        if random() < this_paid_prob:
+            db.add(Event(customer_id=c.id, type=EventType.invoice_paid, ts=day))
+        else:
+            db.add(Event(customer_id=c.id, type=EventType.invoice_late, ts=day))
+        offcycle_emitted.add(month_key)
+
+
+    day += timedelta(days=1)
+
+    # cleanup temp
+    delattr(c, "_profile")
 
     db.commit()
 

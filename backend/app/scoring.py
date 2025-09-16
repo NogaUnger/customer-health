@@ -116,23 +116,37 @@ def _support_ticket_score(db: Session, customer_id: int, now: datetime, seg: Seg
 
 def _invoice_timeliness_score(db: Session, customer_id: int, now: datetime) -> float:
     """
-    Paid vs late in 90d window; neutral 50 if no signal.
+    Recency-weighted paid vs late over ~180 days for more continuous scores.
+
+    Weighting:
+      w(ts) = 0.5 ** (age_days / 60)   # half-life ≈ 60 days
+    Score = 100 * (sum_paid_w / (sum_paid_w + sum_late_w)), neutral 50 if none.
     """
-    since = now - timedelta(days=90)
-    paid = (
-        db.query(Event)
-        .filter(Event.customer_id == customer_id, Event.type == EventType.invoice_paid, Event.ts >= since)
-        .count()
+    since = now - timedelta(days=180)
+
+    rows = (
+        db.query(Event.type, Event.ts)
+        .filter(
+            Event.customer_id == customer_id,
+            Event.type.in_([EventType.invoice_paid, EventType.invoice_late]),
+            Event.ts >= since,
+        )
+        .all()
     )
-    late = (
-        db.query(Event)
-        .filter(Event.customer_id == customer_id, Event.type == EventType.invoice_late, Event.ts >= since)
-        .count()
-    )
-    total = paid + late
-    if total == 0:
+    if not rows:
         return 50.0
-    return clamp((paid / total) * 100.0)
+
+    def w(ts):
+        age = now - ts
+        age_days = age.days + age.seconds / 86400.0
+        return 0.5 ** (age_days / 60.0)  # recent invoices count more
+
+    paid_w = sum(w(ts) for (t, ts) in rows if t == EventType.invoice_paid)
+    late_w = sum(w(ts) for (t, ts) in rows if t == EventType.invoice_late)
+    total = paid_w + late_w
+    if total <= 0:
+        return 50.0
+    return clamp(100.0 * (paid_w / total))
 
 
 def _api_usage_trend_score(db: Session, customer_id: int, now: datetime) -> float:
