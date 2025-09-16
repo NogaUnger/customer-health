@@ -19,6 +19,26 @@ from .. import models, schemas
 router = APIRouter(prefix="/api/customers", tags=["events"])
 
 
+def _as_models_event_type(raw) -> models.EventType:
+    """
+    Normalize incoming 'type' to models.EventType.
+
+    Accepts:
+    - models.EventType
+    - a different Enum with a string 'value' (e.g., schemas.EventType)
+    - a plain string like 'login'
+    """
+    if isinstance(raw, models.EventType):
+        return raw
+    # If it's some other Enum (e.g., Pydantic's), get its .value
+    if hasattr(raw, "value"):
+        raw = raw.value
+    try:
+        return models.EventType(raw)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Invalid event type")
+
+
 @router.post("/{customer_id}/events", response_model=schemas.EventOut, status_code=201)
 def create_event(customer_id: int, payload: schemas.EventCreate, db: Session = Depends(get_db)):
     """
@@ -37,7 +57,8 @@ def create_event(customer_id: int, payload: schemas.EventCreate, db: Session = D
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    et = payload.type
+    # Normalize the incoming type to our models.EventType
+    et = _as_models_event_type(payload.type)
 
     # 2) Cross-field validation by type
     if et == models.EventType.feature_use:
