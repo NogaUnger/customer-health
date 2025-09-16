@@ -18,17 +18,6 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 
-  backend:
-    build: ./backend
-    environment:
-      DATABASE_URL: postgresql+psycopg://app:app@db:5432/app
-      SEED_ON_START: "true"
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
   dbdata:
