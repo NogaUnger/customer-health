@@ -8,6 +8,10 @@ from app.db import Base, engine, SessionLocal
 from app import models
 from app.scoring import compute_health_breakdown
 
+"""
+Integration tests for the Customer Health API using a tiny, controlled DB.
+
+"""
 client = TestClient(app)
 
 def setup_module(_):

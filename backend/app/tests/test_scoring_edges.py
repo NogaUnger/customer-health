@@ -3,6 +3,11 @@ from app.db import SessionLocal
 from app.models import Customer, Event, Segment, EventType
 from app.scoring import compute_health_breakdown
 
+
+"""
+This test checks that the API usage trend factor in your scoring works as intended: 
+it should be above 50 when recent API usage is higher than the previous week, and below 50 when it’s lower.
+"""
 def _new_customer(db):
     c = Customer(name=f'EdgeCo-{datetime.utcnow().timestamp()}', segment=Segment.smb)
     db.add(c); db.commit(); db.refresh(c)
