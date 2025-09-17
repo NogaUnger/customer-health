@@ -482,7 +482,6 @@
     function destroyChart(id){ const ch = state.charts.get(id); if (ch){ ch.destroy(); state.charts.delete(id); } }
 
   
-
     function renderBreakdown(id, cell, factors){
       const labels = ["login_frequency","feature_adoption","support_ticket_volume","invoice_timeliness","api_usage_trend"];
       const pretty = {
@@ -492,30 +491,32 @@
         invoice_timeliness:"Invoice Timeliness",
         api_usage_trend:"API Usage Trend"
       };
-      // raw component scores (0–100)
-      const data = labels.map(k => Math.round(factors[k] ?? 0));
-      // weighted contributions used for the donut
-      const contrib = labels.map(k => Math.round((factors[k] ?? 0) * WEIGHTS[k]));
+      const data = labels.map(k => Math.round(factors[k] ?? 0));                // 0–100 per component
+      const contrib = labels.map(k => Math.round((factors[k] ?? 0) * WEIGHTS[k])); // weighted donut
 
       cell.innerHTML = `
         <div class="expanded-grid">
+          <!-- LEFT: donut -->
           <div>
-            <div class="mini" style="margin:0 0 6px 2px">
-              <b>How this customer’s score is built</b> (weighted contributions)
+            <div style="font-weight:700;font-size:16px;margin:0 0 8px 2px">
+              How this customer’s score is built <span class="mini" style="font-weight:400"></span>
             </div>
-            <canvas id="donut-${id}" data-chart="${id}" height="220"></canvas>
+            <div style="max-width:340px">
+              <canvas id="donut-${id}" data-chart="${id}" height="180"></canvas>
+            </div>
           </div>
 
+          <!-- RIGHT: bars + values -->
           <div>
-            <!-- column subtitles -->
-            <div class="mini" style="display:grid;grid-template-columns:220px 1fr 40px;gap:10px;align-items:end;margin:0 0 6px 0">
+            <!-- column headers on the same grid as rows so they align perfectly -->
+            <div style="display:grid;grid-template-columns:240px 1fr 60px;gap:10px;align-items:end;margin:0 0 6px 0">
               <div></div>
-              <div style="text-align:center"><b>Percentage of each component</b></div>
-              <div style="text-align:right"><b>Customer’s score</b></div>
+              <div style="text-align:center;font-weight:700;font-size:15px">Percentage of each component</div>
+              <div style="text-align:right;font-weight:700;font-size:15px">Customer’s score</div>
             </div>
 
             ${labels.map((k,i)=>`
-              <div style="display:grid;grid-template-columns:220px 1fr 40px;gap:10px;align-items:center;margin:8px 0">
+              <div style="display:grid;grid-template-columns:240px 1fr 60px;gap:10px;align-items:center;margin:8px 0">
                 <div style="color:#475569">
                   ${pretty[k]} <span class="mini" style="color:#64748b">(${Math.round(WEIGHTS[k]*100)}%)</span>
                 </div>
@@ -542,21 +543,23 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,    // honor our height
           plugins: {
             legend:{ position:"bottom" },
             tooltip:{ enabled:true },
             datalabels:{
               color:"#111",
-              formatter:(v)=> (v && v>0) ? Math.round(v) : null,   // hide zeros
+              formatter:(v)=> (v && v>0) ? Math.round(v) : null, // hide zeros
               font:{ weight:"700" }
             }
           },
-          cutout: "60%"
+          cutout: "62%"
         },
         plugins:[ChartDataLabels]
       });
       state.charts.set(id, chart);
     }
+
 
     async function toggleExpand(id, btn) {
       const cell = document.querySelector(`#expand-${id} .expanded-cell`);
