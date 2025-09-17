@@ -67,10 +67,25 @@
       align-items:start;
     }
 
-    /* make the canvas honor container width/height */
-    .expanded-cell canvas.responsive{
-      width:100% !important;
-      height:260px !important;          /* consistent size */
+    .expanded-grid{
+      display:grid;
+      grid-template-columns:minmax(360px, 460px) 1fr;  /* was 320–440 */
+      gap:16px;
+      align-items:start;
+    }
+
+    /* NEW: square container for donut */
+    .donut-box{
+      width: 100%;
+      max-width: 420px;         /* donut never grows beyond this */
+    }
+
+    /* Let the canvas adopt the box size without blurry CSS scaling */
+    .donut-box canvas{
+      display:block;
+      width:100%;               /* CSS pixels (layout) */
+      height:auto;
+      aspect-ratio: 1 / 1;      /* always square */
     }
     .mini{font-size:12px;color:var(--muted)}
     .empty, .error, .loading{color:var(--muted);padding:16px;text-align:center}
@@ -92,7 +107,10 @@
 </head>
 <body>
   <header>
-    <h1>Customer Health</h1>
+    <h1>Customer Health Dashboard</h1>
+    <p class="sub">
+      <b>All you need to know, all in one score</b>
+    </p>
     <p class="sub">
       Scores blend <b>Login Frequency</b>, <b>Feature Adoption</b>, <b>Ticket Volume</b>,
       <b>Invoice Timeliness</b>, and <b>API Usage Trend</b>. Higher is better (0–100).
@@ -449,64 +467,105 @@
 
     function destroyChart(id){ const ch = state.charts.get(id); if (ch){ ch.destroy(); state.charts.delete(id); } }
 
-    function renderBreakdown(id, cell, factors){
-      const labels = ["login_frequency","feature_adoption","support_ticket_volume","invoice_timeliness","api_usage_trend"];
-      const pretty = {
-        login_frequency:"Login Frequency",
-        feature_adoption:"Feature Adoption",
-        support_ticket_volume:"Ticket Volume",
-        invoice_timeliness:"Invoice Timeliness",
-        api_usage_trend:"API Usage Trend"
+    function renderBreakdown(id, cell, factors) {
+      // --- factor keys & labels (must match backend/scoring keys) ---
+      const KEYS = [
+        "login_frequency",
+        "feature_adoption",
+        "support_ticket_volume",
+        "invoice_timeliness",
+        "api_usage_trend",
+      ];
+      const LABEL = {
+        login_frequency: "Login Frequency",
+        feature_adoption: "Feature Adoption",
+        support_ticket_volume: "Ticket Volume",
+        invoice_timeliness: "Invoice Timeliness",
+        api_usage_trend: "API Usage Trend",
       };
-      const data = labels.map(k => Math.round(factors[k] ?? 0));
-      const contrib = labels.map(k => Math.round((factors[k] ?? 0) * WEIGHTS[k]));
+      const COLORS = [
+        "#3b82f6", // login  (blue)
+        "#ef476f", // feature (pink/red)
+        "#f59e0b", // tickets (orange)
+        "#facc15", // invoices (yellow)
+        "#14b8a6", // api trend (teal)
+      ];
 
+      // --- numbers: raw (0-100) and weighted contribution (sum ≈ total) ---
+      const raw = KEYS.map(k => Math.max(0, Math.min(100, Number(factors?.[k] ?? 0))));
+      const contrib = KEYS.map((k, i) => Math.max(0, raw[i] * (WEIGHTS[k] ?? 0)));
+
+      // --- right panel (bars) HTML ---
+      const barsHtml = KEYS.map((k, i) => `
+        <div style="display:flex;align-items:center;gap:10px;margin:8px 0">
+          <div style="width:220px;color:#475569">${LABEL[k]} (${Math.round((WEIGHTS[k] ?? 0) * 100)}%)</div>
+          <div style="flex:1;background:#e2e8f0;border:1px solid #e5e7eb;border-radius:999px;overflow:hidden;height:8px">
+            <div style="height:100%;width:${raw[i]}%;background:linear-gradient(90deg,#2563eb,#22c55e)"></div>
+          </div>
+          <div style="width:40px;text-align:right">${Math.round(raw[i])}</div>
+        </div>
+      `).join("");
+
+      // --- inject content (left = donut, right = bars) ---
       cell.innerHTML = `
         <div class="expanded-grid">
-          <div>
-            <canvas id="donut-${id}" class="responsive" data-chart="${id}" height="220"></canvas>
+          <div class="donut-box">
+            <canvas id="donut-${id}" data-chart="${id}"></canvas>
           </div>
           <div>
-            ${labels.map((k,i)=>`
-              <div style="display:flex;align-items:center;gap:10px;margin:8px 0">
-                <div style="width:220px;color:#475569">${pretty[k]} (${Math.round(WEIGHTS[k]*100)}%)</div>
-                <div style="flex:1;background:#e2e8f0;border:1px solid #e5e7eb;border-radius:999px;overflow:hidden;height:8px">
-                  <div style="height:100%;width:${data[i]}%;background:linear-gradient(90deg,#2563eb,#22c55e)"></div>
-                </div>
-                <div style="width:40px;text-align:right">${data[i]}</div>
-              </div>
-            `).join("")}
-            <div class="mini" style="margin-top:8px">Donut numbers show weighted contribution (sum ≈ total score). Zeros are hidden.</div>
+            ${barsHtml}
+            <div class="mini" style="margin-top:8px">
+              Donut numbers show weighted contribution (sum ≈ total score). Zeros are hidden.
+            </div>
           </div>
         </div>
       `;
-      const ctx = document.getElementById(`donut-${id}`).getContext("2d");
+
+      // --- crisp, square sizing for the donut canvas (no CSS scaling blur) ---
+      const canvas = document.getElementById(`donut-${id}`);
+      const box = canvas.parentElement.getBoundingClientRect();
+      const cssSize = Math.min(420, Math.max(260, box.width));   // square size in CSS px
+      const dpr = window.devicePixelRatio || 1;
+      canvas.style.width = `${cssSize}px`;
+      canvas.style.height = `${cssSize}px`;
+      canvas.width = Math.round(cssSize * dpr);                   // actual pixel buffer
+      canvas.height = Math.round(cssSize * dpr);
+
+      // --- build donut chart ---
+      const ctx = canvas.getContext("2d");
       const chart = new Chart(ctx, {
         type: "doughnut",
         data: {
-          labels: labels.map(k=>pretty[k]),
+          labels: KEYS.map(k => LABEL[k]),
           datasets: [{
             data: contrib,
+            backgroundColor: COLORS,
             borderWidth: 0,
+            hoverOffset: 2
           }]
         },
         options: {
-          responsive: true,
+          responsive: false,                  // we sized the canvas manually
+          maintainAspectRatio: false,
+          cutout: "58%",
+          animation: { duration: 250 },
           plugins: {
-            legend:{position:"bottom"},
-            tooltip:{enabled:true},
-            datalabels:{
-              color:"#111",
-              formatter:(v)=> (v && v>0) ? Math.round(v) : null,   // hide zeros
-              font:{weight:"700"}
+            legend: { position: "bottom" },
+            tooltip: { enabled: true },
+            datalabels: {
+              color: "#111",
+              formatter: v => (v && v > 0) ? Math.round(v) : null,  // hide zeros
+              font: { weight: "700" }
             }
-          },
-          cutout: "60%"
+          }
         },
-        plugins:[ChartDataLabels]
+        plugins: [ChartDataLabels]
       });
+
+      // track the chart so we can destroy it later when collapsing / resizing
       state.charts.set(id, chart);
     }
+
 
     async function toggleExpand(id, btn){
       const cell = document.querySelector(`#expand-${id} .expanded-cell`);
