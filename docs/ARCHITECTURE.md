@@ -20,3 +20,44 @@
 
 ## Testing
 - pytest + pytest-cov run inside the backend container.
+
+
+## System Diagram
+
+```mermaid
+flowchart LR
+    subgraph Browser
+        UI["Dashboard (HTML/JS)"]
+    end
+
+    subgraph Backend["FastAPI (Uvicorn)"]
+        R1["Router: /api/customers/"]
+        R2["Router: /api/events/"]
+        R3["Router: /api/health/*"]
+        S["scoring.py - factor calculations & weighting"]
+        Seed["seed.py - sample data generator"]
+    end
+
+    DB[(PostgreSQL 16)]
+
+    %% Static page
+    UI -- "GET /api/dashboard" --> Backend
+    Backend --> UI
+
+    %% API usage from dashboard
+    UI -- "GET /api/customers, /api/customers/{id}/health" --> R1
+    UI -- "GET /api/health/summary, /api/health/trend" --> R3
+    UI -- "POST /api/customers/{id}/events" --> R2
+
+    %% Data flow
+    R2 -- "insert events" --> DB
+    R1 -- "read customers" --> DB
+    R3 -- "aggregate, summarize" --> DB
+    R1 -- "compute per-customer" --> S
+    R3 -- "compute trends/summary" --> S
+
+    %% Scoring storage
+    S -- "optionally update health_score" --> DB
+
+    %% Startup
+    Seed -- "create tables & seed when SEED_ON_START=true" --> DB
