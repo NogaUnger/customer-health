@@ -88,9 +88,64 @@
       </div>
     </div>
 
+    <!-- CONTROLS -->
     <div class="sticky-controls panel" style="margin-top:12px">
-      <!-- existing controls block (unchanged) -->
-      <!-- ... (same as previous version you pasted) ... -->
+      <div class="controls">
+        <div class="field" style="grid-column:span 3">
+          <label for="search">Search by name</label>
+          <input id="search" type="text" placeholder="e.g. acme, rocket, cloud...">
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label for="segment">Segment</label>
+          <select id="segment">
+            <option value="">All</option>
+            <option value="startup">Startup</option>
+            <option value="smb">SMB</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:span 3">
+          <label>Risk</label>
+          <div class="badges">
+            <button class="btn ghost risk-filter active" data-risk="all">All <span id="count-all" class="badge">0</span></button>
+            <button class="btn ghost risk-filter" data-risk="at_risk">At Risk <span id="count-risk" class="badge">0</span></button>
+            <button class="btn ghost risk-filter" data-risk="watch">Watch <span id="count-watch" class="badge">0</span></button>
+            <button class="btn ghost risk-filter" data-risk="healthy">Healthy <span id="count-healthy" class="badge">0</span></button>
+          </div>
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label>Score range</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="score-min-label" class="badge">0</span>
+            <input id="score-min" type="range" min="0" max="100" value="0" step="1" style="width:120px">
+            <input id="score-max" type="range" min="0" max="100" value="100" step="1" style="width:120px">
+            <span id="score-max-label" class="badge">100</span>
+          </div>
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label for="sort">Sort</label>
+          <div style="display:flex;gap:8px">
+            <select id="sort">
+              <option value="health_score">Score</option>
+              <option value="name">Name</option>
+              <option value="id">ID</option>
+            </select>
+            <button id="order" class="btn" title="Toggle order">Asc</button>
+          </div>
+        </div>
+        <div class="field" style="grid-column:span 2">
+          <label for="page-size">Page size</label>
+          <select id="page-size">
+            <option>10</option>
+            <option>25</option>
+            <option selected>50</option>
+            <option>100</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:span 12;display:flex;gap:8px;justify-content:flex-end">
+          <button id="export" class="btn">Export CSV (current view)</button>
+        </div>
+      </div>
     </div>
 
     <div id="status" class="loading" style="display:none">Loading…</div>
@@ -121,7 +176,6 @@
   </div>
 
   <script>
-    // ---------------- constants ----------------
     const WEIGHTS = {
       login_frequency: 0.25,
       feature_adoption: 0.20,
@@ -130,13 +184,328 @@
       api_usage_trend: 0.10
     };
 
-    // -------------- (all existing state + helpers from previous dashboard remain) --------------
-    // For brevity here, keep your previous JS (filters, fetchAndRender, expand rows, CSV, etc.)
-    // Below are only the parts that changed/added: the trend chart and donut per row.
+    const state = {
+      q: "", segment: "", risk: "all",
+      min: 0, max: 100,
+      sort: "health_score", order: "asc",
+      limit: 50, offset: 0,
+      rows: [],
+      p25: 25, p75: 75,
+      charts: new Map(),
+      breakdownCache: new Map()
+    };
 
-    // --- START: insert these into your existing script ---
+    const persist = () => localStorage.setItem("dashState", JSON.stringify({
+      q: state.q, segment: state.segment, risk: state.risk,
+      min: state.min, max: state.max, sort: state.sort, order: state.order, limit: state.limit
+    }));
+    const restore = () => {
+      try {
+        const raw = localStorage.getItem("dashState");
+        if (!raw) return;
+        const d = JSON.parse(raw);
+        Object.assign(state, d);
+        document.getElementById("search").value = state.q || "";
+        document.getElementById("segment").value = state.segment || "";
+        document.getElementById("sort").value = state.sort;
+        document.getElementById("order").textContent = state.order === "asc" ? "Asc" : "Desc";
+        document.getElementById("page-size").value = String(state.limit);
+        document.getElementById("score-min").value = state.min;
+        document.getElementById("score-max").value = state.max;
+        document.getElementById("score-min-label").textContent = state.min;
+        document.getElementById("score-max-label").textContent = state.max;
+        document.querySelectorAll(".risk-filter").forEach(b=>{
+          b.classList.toggle("active", b.dataset.risk===state.risk);
+        });
+      } catch {}
+    };
 
-    // Trend chart globals
+    const $tbody = document.getElementById("tbody");
+    const $status = document.getElementById("status");
+    const $error = document.getElementById("error");
+    const $empty = document.getElementById("empty");
+    const $pageLabel = document.getElementById("page-label");
+    const $btnPrev = document.getElementById("prev");
+    const $btnNext = document.getElementById("next");
+
+    const fmtScore = s => (s==null?"—":Math.round(s));
+    const segBadge = s => `<span class="seg">${s}</span>`;
+    function scorePill(score){
+      let cls = "risk-high";
+      if (score < state.p25) cls = "risk-low";
+      else if (score < state.p75) cls = "risk-mid";
+      return `<span class="score-pill ${cls}">${fmtScore(score)}</span>`;
+    }
+    function riskBucket(score){
+      if (score < state.p25) return "at_risk";
+      if (score < state.p75) return "watch";
+      return "healthy";
+    }
+    function buildUrl(){
+      const u = new URL(location.origin + "/api/customers");
+      u.searchParams.set("limit", state.limit);
+      u.searchParams.set("offset", state.offset);
+      u.searchParams.set("sort", state.sort);
+      u.searchParams.set("order", state.order);
+      if (state.q) u.searchParams.set("q", state.q);
+      if (state.segment) u.searchParams.set("segment", state.segment);
+      return u.toString();
+    }
+    function computePercentiles(arr){
+      if (!arr.length){ state.p25=25; state.p75=75; return; }
+      const xs = [...arr.map(r=>r.health_score||0)].sort((a,b)=>a-b);
+      const q = p => {
+        const idx = (p/100)*(xs.length-1);
+        const lo = Math.floor(idx), hi = Math.ceil(idx);
+        if (hi===lo) return xs[lo];
+        const w = idx - lo;
+        return xs[lo]*(1-w)+xs[hi]*w;
+      };
+      state.p25 = q(25); state.p75 = q(75);
+    }
+    function updateRiskCounts(arr){
+      const all = arr.length;
+      const risk = arr.filter(r=>riskBucket(r.health_score||0)==="at_risk").length;
+      const watch = arr.filter(r=>riskBucket(r.health_score||0)==="watch").length;
+      const healthy = arr.filter(r=>riskBucket(r.health_score||0)==="healthy").length;
+      document.getElementById("count-all").textContent = all;
+      document.getElementById("count-risk").textContent = risk;
+      document.getElementById("count-watch").textContent = watch;
+      document.getElementById("count-healthy").textContent = healthy;
+    }
+
+    function showStatus(kind){
+      $status.style.display = kind==="loading" ? "block" : "none";
+      $error.style.display  = kind==="error" ? "block" : "none";
+      $empty.style.display  = "none";
+    }
+
+    function renderRows(){
+      $tbody.innerHTML = "";
+      const inScore = r => (r.health_score??0) >= state.min && (r.health_score??0) <= state.max;
+      let rows = state.rows.filter(inScore);
+      if (state.risk!=="all"){
+        rows = rows.filter(r=>riskBucket(r.health_score||0)===state.risk);
+      }
+      if (!rows.length){ $empty.style.display="block"; return; }
+      $empty.style.display="none";
+
+      for (const r of rows){
+        const tr = document.createElement("tr");
+        tr.className = "data-row";
+        tr.id = `row-${r.id}`;
+        tr.innerHTML = `
+          <td>${r.id}</td>
+          <td>${r.name}</td>
+          <td>${segBadge(r.segment)}</td>
+          <td>${r.seats ?? "—"}</td>
+          <td>${scorePill(r.health_score)}</td>
+          <td class="actions">
+            <button class="btn expand" data-id="${r.id}">Details</button>
+            <a class="link" href="#customer-${r.id}" title="Copy link">Link</a>
+          </td>
+        `;
+        $tbody.appendChild(tr);
+
+        const exp = document.createElement("tr");
+        exp.id = `expand-${r.id}`;
+        exp.innerHTML = `<td colspan="6"><div class="expanded-cell" style="display:none"></div></td>`;
+        $tbody.appendChild(exp);
+      }
+
+      document.querySelectorAll(".expand").forEach(btn=>{
+        btn.onclick = async (e)=>{
+          const id = Number(e.currentTarget.dataset.id);
+          await toggleExpand(id);
+        };
+      });
+    }
+
+    function destroyChart(id){
+      const ch = state.charts.get(id);
+      if (ch){ ch.destroy(); state.charts.delete(id); }
+    }
+
+    function renderBreakdown(id, cell, factors){
+      const labels = ["login_frequency","feature_adoption","support_ticket_volume","invoice_timeliness","api_usage_trend"];
+      const pretty = {
+        login_frequency:"Login Frequency",
+        feature_adoption:"Feature Adoption",
+        support_ticket_volume:"Ticket Volume",
+        invoice_timeliness:"Invoice Timeliness",
+        api_usage_trend:"API Usage Trend"
+      };
+      const data = labels.map(k => Math.round(factors[k] ?? 0));
+      const contrib = labels.map(k => (factors[k] ?? 0) * WEIGHTS[k]);
+
+      cell.innerHTML = `
+        <div class="expanded-grid">
+          <div>
+            <canvas id="donut-${id}" data-chart="${id}" height="220"></canvas>
+          </div>
+          <div>
+            <div class="mini" style="margin-bottom:10px">Health breakdown (0–100, higher is better):</div>
+            ${labels.map((k,i)=>`
+              <div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+                <div style="width:190px;color:var(--muted)">${pretty[k]} (${Math.round(WEIGHTS[k]*100)}%)</div>
+                <div style="flex:1;background:#0d152b;border:1px solid var(--border);border-radius:999px;overflow:hidden;height:8px">
+                  <div style="height:100%;width:${data[i]}%;background:linear-gradient(90deg,#38bdf8,#8b5cf6)"></div>
+                </div>
+                <div style="width:40px;text-align:right">${data[i]}</div>
+              </div>
+            `).join("")}
+            <div class="mini" style="margin-top:12px">
+              Donut shows weighted contribution of each factor to the total score.
+            </div>
+          </div>
+        </div>
+      `;
+      const ctx = document.getElementById(`donut-${id}`).getContext("2d");
+      const chart = new Chart(ctx, {
+        type: "doughnut",
+        data: { labels: labels.map(k=>pretty[k]), datasets: [{ data: contrib, borderWidth: 0 }] },
+        options: {
+          responsive: true,
+          plugins: { legend:{position:"bottom", labels:{color:"#cbd5e1"}}, tooltip:{enabled:true} },
+          cutout: "60%"
+        }
+      });
+      state.charts.set(id, chart);
+    }
+
+    async function toggleExpand(id){
+      const cell = document.querySelector(`#expand-${id} .expanded-cell`);
+      const opened = cell.style.display !== "none";
+      if (opened){ cell.style.display="none"; destroyChart(id); return; }
+
+      document.querySelectorAll(".expanded-cell").forEach(n=>{
+        if (n!==cell){ n.style.display="none"; }
+      });
+      document.querySelectorAll("canvas[data-chart]").forEach(c=>{
+        const cid = Number(c.dataset.chart);
+        destroyChart(cid);
+      });
+
+      cell.style.display="block";
+      let factors = state.breakdownCache.get(id);
+      if (!factors){
+        const r = await fetch(`/api/customers/${id}/health`);
+        if (!r.ok){ cell.innerHTML = `<div class="mini">Failed to load breakdown.</div>`; return; }
+        const body = await r.json();
+        factors = body.factors || {};
+        state.breakdownCache.set(id, factors);
+      }
+      renderBreakdown(id, cell, factors);
+      history.replaceState(null, "", `#customer-${id}`);
+    }
+
+    const debounce = (fn,ms)=>{let t;return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
+
+    function updatePagination(arr){
+      const page = Math.floor(state.offset / state.limit) + 1;
+      document.getElementById("page-label").textContent = `Page ${page}`;
+      document.getElementById("prev").disabled = state.offset<=0;
+      document.getElementById("next").disabled = arr.length < state.limit;
+    }
+
+    async function fetchAndRender(){
+      persist();
+      showStatus("loading");
+      try{
+        const url = buildUrl();
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("bad status");
+        const arr = await res.json();
+        computePercentiles(arr);
+        updateRiskCounts(arr);
+        state.rows = arr;
+        renderRows();
+        updatePagination(arr);
+        if (!arr.length) { $empty.style.display="block"; }
+        showStatus("");
+        openDeepLinkOnce();
+      } catch(err){
+        console.error(err);
+        showStatus("error");
+      }
+    }
+
+    // Controls wiring
+    restore();
+
+    document.getElementById("search").addEventListener("input", debounce(e=>{
+      state.q = e.target.value.trim(); state.offset=0; fetchAndRender();
+    }, 300));
+
+    document.getElementById("segment").addEventListener("change", e=>{
+      state.segment = e.target.value; state.offset=0; fetchAndRender();
+    });
+
+    document.querySelectorAll(".risk-filter").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        document.querySelectorAll(".risk-filter").forEach(x=>x.classList.remove("active"));
+        b.classList.add("active");
+        state.risk = b.dataset.risk; state.offset=0; fetchAndRender();
+      });
+    });
+
+    document.getElementById("score-min").addEventListener("input", e=>{
+      state.min = Number(e.target.value);
+      if (state.min > state.max){ state.min = state.max; e.target.value = state.min; }
+      document.getElementById("score-min-label").textContent = state.min;
+      renderRows();
+    });
+    document.getElementById("score-max").addEventListener("input", e=>{
+      state.max = Number(e.target.value);
+      if (state.max < state.min){ state.max = state.min; e.target.value = state.max; }
+      document.getElementById("score-max-label").textContent = state.max;
+      renderRows();
+    });
+
+    document.getElementById("sort").addEventListener("change", e=>{
+      state.sort = e.target.value; state.offset=0; fetchAndRender();
+    });
+    document.getElementById("order").addEventListener("click", ()=>{
+      state.order = state.order==="asc" ? "desc" : "asc";
+      document.getElementById("order").textContent = state.order==="asc" ? "Asc" : "Desc";
+      state.offset=0; fetchAndRender();
+    });
+
+    document.getElementById("page-size").addEventListener("change", e=>{
+      state.limit = Number(e.target.value); state.offset=0; fetchAndRender();
+    });
+    document.getElementById("prev").addEventListener("click", ()=>{ state.offset = Math.max(0, state.offset - state.limit); fetchAndRender(); });
+    document.getElementById("next").addEventListener("click", ()=>{ state.offset = state.offset + state.limit; fetchAndRender(); });
+
+    document.getElementById("export").addEventListener("click", ()=>{
+      const rows = state.rows
+        .filter(r => (r.health_score??0) >= state.min && (r.health_score??0) <= state.max)
+        .filter(r => state.risk==="all" || riskBucket(r.health_score||0)===state.risk);
+      const header = ["id","name","segment","seats","health_score"];
+      const csv = [header.join(",")].concat(rows.map(r =>
+        [r.id, JSON.stringify(r.name), r.segment, r.seats ?? "", Math.round(r.health_score ?? 0)].join(",")
+      )).join("\n");
+      const blob = new Blob([csv], {type:"text/csv"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "customers.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // Deep link open
+    let openedDeepLink = false;
+    function openDeepLinkOnce(){
+      if (openedDeepLink) return;
+      const m = location.hash.match(/#customer-(\d+)/);
+      if (m){
+        const id = Number(m[1]);
+        const btn = document.querySelector(`.expand[data-id="${id}"]`);
+        if (btn) { openedDeepLink = true; btn.click(); }
+      }
+    }
+
+    // Trend chart
     let trendChart;
     async function loadTrend() {
       const seg = document.getElementById("trend-segment").value || "";
@@ -147,7 +516,6 @@
       if (!r.ok) return;
       const data = await r.json();
       renderTrendChart(data);
-      // Glance numbers (last point)
       if (data.length) {
         const last = data[data.length-1];
         document.getElementById("glance").innerHTML =
@@ -183,59 +551,9 @@
     }
     document.getElementById("trend-segment").addEventListener("change", loadTrend);
 
-    // Modify row expander to render a DONUT + bars (keep your existing expander wiring)
-    function renderBreakdown(id, cell, factors){
-      const labels = ["login_frequency","feature_adoption","support_ticket_volume","invoice_timeliness","api_usage_trend"];
-      const pretty = {
-        login_frequency:"Login Frequency",
-        feature_adoption:"Feature Adoption",
-        support_ticket_volume:"Ticket Volume",
-        invoice_timeliness:"Invoice Timeliness",
-        api_usage_trend:"API Usage Trend"
-      };
-      const data = labels.map(k => Math.round(factors[k] ?? 0));
-
-      // donut values = weighted contributions
-      const contrib = labels.map(k => (factors[k] ?? 0) * WEIGHTS[k]);
-
-      cell.innerHTML = `
-        <div class="expanded-grid">
-          <div>
-            <canvas id="donut-${id}" data-chart="${id}" height="220"></canvas>
-          </div>
-          <div>
-            <div class="mini" style="margin-bottom:10px">Health breakdown (0–100, higher is better):</div>
-            ${labels.map((k,i)=>`
-              <div style="display:flex;align-items:center;gap:10px;margin:6px 0">
-                <div style="width:190px;color:var(--muted)">${pretty[k]} (${Math.round(WEIGHTS[k]*100)}%)</div>
-                <div style="flex:1;background:#0d152b;border:1px solid var(--border);border-radius:999px;overflow:hidden;height:8px">
-                  <div style="height:100%;width:${data[i]}%;background:linear-gradient(90deg,#38bdf8,#8b5cf6)"></div>
-                </div>
-                <div style="width:40px;text-align:right">${data[i]}</div>
-              </div>
-            `).join("")}
-            <div class="mini" style="margin-top:12px">
-              Donut shows weighted contribution of each factor to the total score.
-            </div>
-          </div>
-        </div>
-      `;
-      const ctx = document.getElementById(`donut-${id}`).getContext("2d");
-      const chart = new Chart(ctx, {
-        type: "doughnut",
-        data: { labels: labels.map(k=>pretty[k]), datasets: [{ data: contrib, borderWidth: 0 }] },
-        options: {
-          responsive: true,
-          plugins: { legend:{position:"bottom", labels:{color:"#cbd5e1"}}, tooltip:{enabled:true} },
-          cutout: "60%"
-        }
-      });
-      // store/destroy if you manage lifecycles; omitted here for brevity
-    }
-
-    // After page load:
+    // GO!
     loadTrend();
-    // --- END: insert ---
+    fetchAndRender();
   </script>
 </body>
 </html>
