@@ -1,4 +1,4 @@
-### Customer Health (FastAPI + Postgres)
+## Customer Health (FastAPI + Postgres)
 
 
 
@@ -6,7 +6,7 @@ One-command setup with Docker. Seeds sample data and exposes a dashboard + REST 
 
 
 
-## Quickstart
+### Quickstart
 
 
 **Prereqs**
@@ -17,11 +17,12 @@ One-command setup with Docker. Seeds sample data and exposes a dashboard + REST 
 &nbsp; \*(If you only have the legacy plugin, use `docker-compose …` instead.)\*
 
 
-## URLS 
+### URLS 
 Dashboard: http://localhost:8000/api/dashboard
+
 API: http://localhost:8000/docs#/
 
-## Tests
+### Tests
 
 Run the tests (inside Docker):
 ```bash
