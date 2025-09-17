@@ -1,90 +1,105 @@
-# backend/app/routers/customers.py
-from __future__ import annotations
-
-from typing import List, Optional, Literal
-from fastapi import APIRouter, Depends, Query, HTTPException
+from typing import Optional, List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import asc, desc
 
-from ..db import get_db
+from ..db import SessionLocal
 from ..models import Customer, Segment
 from ..scoring import compute_health_breakdown
 
-router = APIRouter(prefix="/api/customers", tags=["customers"])
+router = APIRouter(prefix="/customers", tags=["customers"])
 
+# thresholds used in the dashboard
+RISK_RED = 60
+RISK_GREEN = 80
+
+def risk_bucket(score: float) -> str:
+    if score < RISK_RED:
+        return "at_risk"
+    if score < RISK_GREEN:
+        return "watch"
+    return "healthy"
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 @router.get("")
 def list_customers(
     db: Session = Depends(get_db),
-    # used by your dashboard's initial “fetch all” loop
+    # pagination
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
-    # optional (kept for completeness if you call them elsewhere)
-    q: Optional[str] = Query(None, description="Case-insensitive substring on name"),
+    # optional filters (the UI mostly filters client-side, but having these helps)
+    q: Optional[str] = Query(None, description="Search by name (contains)"),
     segment: Optional[Segment] = Query(None),
-    sort: Literal["id", "name", "health_score"] = "id",
-    order: Literal["asc", "desc"] = "asc",
-) -> List[dict]:
+    risk: Optional[str] = Query(None, pattern="^(at_risk|watch|healthy)$"),
+    min_score: int = Query(0, ge=0, le=100),
+    max_score: int = Query(100, ge=0, le=100),
+    sort: str = Query("health_score", pattern="^(health_score|name|id)$"),
+    order: str = Query("asc", pattern="^(asc|desc)$"),
+):
     """
-    Returns a page of customers with a computed health score.
-
-    Response item shape:
-      { id, name, segment, seats, health_score }
+    Returns rows shaped for the dashboard table:
+    { id, name, segment, seats, health_score }
     """
-    query = db.query(Customer)
-
-    if q:
-        query = query.filter(Customer.name.ilike(f"%{q}%"))
+    qset = db.query(Customer)
     if segment:
-        query = query.filter(Customer.segment == segment)
+        qset = qset.filter(Customer.segment == segment)
+    if q:
+        like = f"%{q}%"
+        qset = qset.filter(Customer.name.ilike(like))
 
-    # For stable pagination, sort at DB level when possible.
-    if sort in ("id", "name"):
-        direction = asc if order == "asc" else desc
-        col = Customer.id if sort == "id" else Customer.name
-        query = query.order_by(direction(col))
-        customers = query.offset(offset).limit(limit).all()
-        results = []
-        for c in customers:
-            score = compute_health_breakdown(db, c.id)["total"]
-            results.append({
-                "id": c.id,
-                "name": c.name,
-                "segment": c.segment.value if hasattr(c.segment, "value") else c.segment,
-                "seats": c.seats,  # <-- company size
-                "health_score": score,
-            })
-        return results
+    customers: List[Customer] = qset.all()
 
-    # sort == "health_score": compute then sort in Python
-    customers = query.offset(offset).limit(limit).all()
-    items = []
+    rows: List[Dict[str, Any]] = []
     for c in customers:
-        score = compute_health_breakdown(db, c.id)["total"]
-        items.append({
+        # compute score on demand so it's always fresh
+        bd = compute_health_breakdown(db, c.id)
+        rows.append({
             "id": c.id,
             "name": c.name,
-            "segment": c.segment.value if hasattr(c.segment, "value") else c.segment,
+            "segment": c.segment.value if hasattr(c.segment, "value") else str(c.segment),
             "seats": c.seats,
-            "health_score": score,
+            "health_score": round(bd["total"], 2),
         })
-    items.sort(key=lambda r: (r["health_score"] is None, r["health_score"]))
-    if order == "desc":
-        items.reverse()
-    return items
 
+    # risk filter (optional)
+    if risk:
+        rows = [r for r in rows if risk_bucket(r["health_score"]) == risk]
 
-@router.get("/{customer_id}/health")
-def customer_health(customer_id: int, db: Session = Depends(get_db)) -> dict:
-    """
-    Return the health breakdown for a single customer.
-    Shape: {"total": float, "factors": {...}}
-    """
+    # score range
+    rows = [r for r in rows if min_score <= (r["health_score"] or 0) <= max_score]
+
+    # sort
+    def keyer(r):
+        if sort == "name":
+            return (r["name"] or "").lower()
+        return r[sort]
+    rows.sort(key=keyer, reverse=(order == "desc"))
+
+    # pagination (after filtering/sorting)
+    sliced = rows[offset: offset + limit]
+    return sliced
+
+@router.get("/{customer_id}")
+def get_customer(customer_id: int, db: Session = Depends(get_db)):
     c = db.query(Customer).get(customer_id)
     if not c:
         raise HTTPException(status_code=404, detail="Customer not found")
-    try:
-        return compute_health_breakdown(db, customer_id)
-    except Exception as e:
-        # Harden against any unexpected scoring edge cases
-        raise HTTPException(status_code=500, detail=f"Health computation failed: {e}")
+    return {
+        "id": c.id,
+        "name": c.name,
+        "segment": c.segment.value if hasattr(c.segment, "value") else str(c.segment),
+        "seats": c.seats,
+    }
+
+@router.get("/{customer_id}/health")
+def get_customer_health(customer_id: int, db: Session = Depends(get_db)):
+    c = db.query(Customer).get(customer_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    bd = compute_health_breakdown(db, c.id)
+    return bd  # {"total": float, "factors": {...}}
