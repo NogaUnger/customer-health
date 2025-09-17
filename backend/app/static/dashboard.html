@@ -567,29 +567,56 @@
     }
 
 
-    async function toggleExpand(id, btn){
+
+    async function toggleExpand(id, btn) {
       const cell = document.querySelector(`#expand-${id} .expanded-cell`);
-      const opened = cell.style.display !== "none";
-      if (opened){
-        cell.style.display="none"; destroyChart(id);
-        if (btn) btn.textContent = "More information";
+      const isOpen = cell.style.display !== "none";
+
+      // helper: set button labels everywhere
+      const setButtons = (activeId) => {
+        document.querySelectorAll(".expand").forEach(b => {
+          const bid = Number(b.dataset.id);
+          b.textContent = (activeId && bid === activeId) ? "Less information" : "More information";
+        });
+      };
+
+      if (isOpen) {
+        // close this one
+        cell.style.display = "none";
+        destroyChart(id);
+        setButtons(null);
         return;
       }
-      document.querySelectorAll(".expanded-cell").forEach(n=>{ if (n!==cell){ n.style.display="none"; }});
-      document.querySelectorAll("canvas[data-chart]").forEach(c=>{ const cid = Number(c.dataset.chart); destroyChart(cid); });
 
-      cell.style.display="block";
-      if (btn) btn.textContent = "Less information";
+      // close all others + destroy their charts
+      document.querySelectorAll(".expanded-cell").forEach(n => {
+        if (n !== cell && n.style.display !== "none") n.style.display = "none";
+      });
+      document.querySelectorAll("canvas[data-chart]").forEach(c => {
+        const cid = Number(c.dataset.chart);
+        destroyChart(cid);
+      });
 
+      // open this one
+      cell.style.display = "block";
+      setButtons(id);
+
+      // fetch factors (cached) and render
       let factors = state.breakdownCache.get(id);
-      if (!factors){
+      if (!factors) {
         const r = await fetch(`/api/customers/${id}/health`);
-        if (!r.ok){ cell.innerHTML = `<div class="mini">Failed to load breakdown (HTTP ${r.status}).</div>`; return; }
+        if (!r.ok) {
+          cell.innerHTML = `<div class="mini">Failed to load breakdown (HTTP ${r.status}).</div>`;
+          setButtons(null);
+          return;
+        }
         const body = await r.json();
         factors = body.factors || {};
         state.breakdownCache.set(id, factors);
       }
       renderBreakdown(id, cell, factors);
+
+      // reflect open row in URL (optional)
       history.replaceState(null, "", `#customer-${id}`);
     }
 
