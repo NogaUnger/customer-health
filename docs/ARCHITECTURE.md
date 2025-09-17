@@ -30,7 +30,7 @@ flowchart LR
         UI["Dashboard (HTML/JS)"]
     end
 
-    subgraph Backend["FastAPI (Uvicorn)"]
+    subgraph Backend["Backend + FastAPI (Uvicorn)"]
         R1["Router: /api/customers/"]
         R2["Router: /api/events/"]
         R3["Router: /api/health/*"]
