@@ -1,69 +1,74 @@
-"""
-routers/customers.py
-====================
-Endpoints for listing customers and fetching a single customer's health breakdown.
-
-Exposes:
-- GET /api/customers
-- GET /api/customers/{id}/health
-"""
-
+# backend/app/routers/customers.py
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional, Literal
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import asc, desc
 
 from ..db import get_db
-from .. import models, schemas, scoring
+from ..models import Customer, Segment
+from ..scoring import compute_health_breakdown
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
 
 
-@router.get("", response_model=list[schemas.CustomerOut])
-def list_customers(db: Session = Depends(get_db)):
+@router.get("")
+def list_customers(
+    db: Session = Depends(get_db),
+    # used by your dashboard's initial “fetch all” loop
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    # optional (kept for completeness if you call them elsewhere)
+    q: Optional[str] = Query(None, description="Case-insensitive substring on name"),
+    segment: Optional[Segment] = Query(None),
+    sort: Literal["id", "name", "health_score"] = "id",
+    order: Literal["asc", "desc"] = "asc",
+) -> List[dict]:
     """
-    Return all customers with their *current* health_score.
+    Returns a page of customers with a computed health score.
 
-    Flow:
-      1) Load all customers (ordered by id for stable output).
-      2) For each customer, recompute health using recent events (scoring.py).
-      3) Persist the latest total back into Customer.health_score (denormalized).
-      4) Commit once, then return the list serialized via schemas.CustomerOut.
+    Response item shape:
+      { id, name, segment, seats, health_score }
     """
-    customers = (
-        db.query(models.Customer)
-        .order_by(models.Customer.id.asc())
-        .all()
-    )
+    query = db.query(Customer)
 
+    if q:
+        query = query.filter(Customer.name.ilike(f"%{q}%"))
+    if segment:
+        query = query.filter(Customer.segment == segment)
+
+    # For stable pagination, sort at DB level when possible.
+    if sort in ("id", "name"):
+        direction = asc if order == "asc" else desc
+        col = Customer.id if sort == "id" else Customer.name
+        query = query.order_by(direction(col))
+        customers = query.offset(offset).limit(limit).all()
+        results = []
+        for c in customers:
+            score = compute_health_breakdown(db, c.id)["total"]
+            results.append({
+                "id": c.id,
+                "name": c.name,
+                "segment": c.segment.value if hasattr(c.segment, "value") else c.segment,
+                "seats": c.seats,  # <-- company size
+                "health_score": score,
+            })
+        return results
+
+    # sort == "health_score": compute then sort in Python
+    customers = query.offset(offset).limit(limit).all()
+    items = []
     for c in customers:
-        breakdown = scoring.compute_health_breakdown(db, c.id)
-        c.health_score = breakdown["total"]
-        # add back to session so SQLAlchemy knows it changed
-        db.add(c)
-
-    db.commit()
-    return customers
-
-
-@router.get("/{customer_id}/health", response_model=schemas.HealthBreakdown)
-def get_customer_health(customer_id: int, db: Session = Depends(get_db)):
-    """
-    Return a detailed health breakdown for a single customer (0–100 total + per-factor scores).
-
-    Flow:
-      1) Ensure the customer exists (404 if not).
-      2) Compute the breakdown with scoring.compute_health_breakdown.
-      3) Persist the total back into Customer.health_score (keep list endpoint fast).
-      4) Commit and return the breakdown (Pydantic schema does the JSON).
-    """
-    customer = db.get(models.Customer, customer_id)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    breakdown = scoring.compute_health_breakdown(db, customer_id)
-    customer.health_score = breakdown["total"]
-    db.add(customer)
-    db.commit()
-
-    return breakdown
+        score = compute_health_breakdown(db, c.id)["total"]
+        items.append({
+            "id": c.id,
+            "name": c.name,
+            "segment": c.segment.value if hasattr(c.segment, "value") else c.segment,
+            "seats": c.seats,
+            "health_score": score,
+        })
+    items.sort(key=lambda r: (r["health_score"] is None, r["health_score"]))
+    if order == "desc":
+        items.reverse()
+    return items

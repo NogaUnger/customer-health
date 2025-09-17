@@ -6,50 +6,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <style>
     :root{
-      --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
-      --ok:#16a34a; --warn:#eab308; --risk:#ef4444; --pill:#1f2937; --accent:#38bdf8;
-      --row:#0b1224; --rowAlt:#0d152b; --border:#22304a;
+      --bg:#ffffff; --text:#0f172a; --muted:#64748b; --border:#e5e7eb; --card:#ffffff;
+      --accent:#2563eb;
+      --ok:#16a34a; --warn:#f59e0b; --risk:#ef4444;
+      --pill:#f1f5f9; --row:#ffffff; --rowAlt:#fafafa;
     }
     *{box-sizing:border-box}
-    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#0b1224, #0f172a 60%);}
-    header{padding:28px 20px 8px;color:var(--text)}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+    header{padding:28px 20px 8px}
     h1{margin:0 0 8px;font-size:28px;letter-spacing:.3px}
-    .sub{color:var(--muted);max-width:900px;line-height:1.5}
+    .sub{color:var(--muted);max-width:980px;line-height:1.5}
     .shell{padding:10px 20px 40px}
-    .panel{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px;padding:14px 14px}
+    .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
     .controls{display:grid;gap:10px;grid-template-columns:repeat(12, minmax(0,1fr));align-items:end}
-    .controls .field{display:flex;flex-direction:column;gap:6px;color:var(--text)}
+    .controls .field{display:flex;flex-direction:column;gap:6px}
     label{font-size:12px;color:var(--muted)}
-    input[type="text"], select {height:36px;border-radius:10px;border:1px solid var(--border);background:#0b1326;color:var(--text);padding:0 10px;outline:none}
+    input[type="text"], select {height:38px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);padding:0 10px;outline:none}
     input[type="range"]{accent-color:var(--accent)}
-    .btn{height:36px;border-radius:10px;border:1px solid var(--border);background:#0b1326;color:var(--text);padding:0 12px;cursor:pointer}
-    .btn:hover{background:#0e1934}
+    .btn{height:38px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);padding:0 12px;cursor:pointer}
+    .btn:hover{background:#f8fafc}
     .btn.ghost{background:transparent}
     .btn.active{outline:2px solid var(--accent)}
     .badges{display:flex;gap:6px;align-items:center}
-    .badge{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:#0b1326}
+    .badge{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:#fff}
     .risk-pill{font-weight:600;color:#fff;padding:4px 10px;border-radius:999px}
     .risk-low{background:var(--risk)}
     .risk-mid{background:var(--warn);color:#111}
     .risk-high{background:var(--ok)}
-    table{width:100%;border-collapse:separate;border-spacing:0 8px;color:var(--text)}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
     thead th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:0 12px}
     tbody tr.data-row{background:linear-gradient(180deg,var(--row),var(--rowAlt));border:1px solid var(--border)}
     tbody tr td{padding:12px}
     tbody tr.data-row td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
     tbody tr.data-row td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
     .score-pill{display:inline-block;background:var(--pill);border:1px solid var(--border);padding:4px 10px;border-radius:999px;font-weight:600}
-    .seg{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#0c1731;color:var(--muted)}
+    .seg{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#eef2ff;color:#334155}
     .actions{display:flex;gap:8px}
     .expand{cursor:pointer}
-    .expanded-cell{background:#0b1326;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:-4px}
+    .expanded-cell{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:-4px}
     .expanded-grid{display:grid;grid-template-columns:420px 1fr;gap:16px}
     .mini{font-size:12px;color:var(--muted)}
     .empty, .error, .loading{color:var(--muted);padding:16px;text-align:center}
     .pagination{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}
     .link{color:var(--accent);text-decoration:none}
-    .sticky-controls{position:sticky;top:0;z-index:10;padding-top:10px;background:linear-gradient(180deg,#0b1224 70%, transparent)}
+    .sticky-controls{position:sticky;top:0;z-index:10;padding-top:10px;background:linear-gradient(180deg,#ffffff 70%, transparent)}
     .grid{display:grid;gap:12px;grid-template-columns:2fr 1fr}
+    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+    .card-kpi{border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff}
+    .kpi-title{font-size:12px;color:var(--muted)}
+    .kpi-value{font-size:22px;font-weight:700;margin-top:2px}
     @media (max-width:1000px){ .grid{grid-template-columns:1fr} }
     @media (max-width:900px){ .expanded-grid{grid-template-columns:1fr} .controls{grid-template-columns:1fr 1fr}}
   </style>
@@ -59,7 +64,7 @@
   <header>
     <h1>Customer Health</h1>
     <p class="sub">
-      Scores blend multiple signals: <b>Login Frequency</b>, <b>Feature Adoption</b>, <b>Ticket Volume</b>,
+      Scores blend <b>Login Frequency</b>, <b>Feature Adoption</b>, <b>Ticket Volume</b>,
       <b>Invoice Timeliness</b>, and <b>API Usage Trend</b>. Higher is better (0–100).
       Use the controls to search, filter, and sort. Click a row for a breakdown (donut + bars).
     </p>
@@ -69,7 +74,7 @@
     <div class="grid">
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div style="color:#e5e7eb;font-weight:600">Overall Health Trend (last 30 days)</div>
+          <div style="font-weight:600">Overall Health Trend (last 30 days)</div>
           <div>
             <select id="trend-segment" class="btn" style="height:32px">
               <option value="">All segments</option>
@@ -79,12 +84,31 @@
             </select>
           </div>
         </div>
-        <canvas id="trendChart" height="120"></canvas>
+        <canvas id="trendChart" height="110"></canvas>
       </div>
 
       <div class="panel">
-        <div style="color:#e5e7eb;font-weight:600;margin-bottom:8px">At-a-glance</div>
-        <div id="glance" class="mini">Loading…</div>
+        <div style="font-weight:600;margin-bottom:8px">At-a-glance</div>
+        <div class="cards">
+          <div class="card-kpi">
+            <div class="kpi-title">Customers</div>
+            <div id="kpi-total" class="kpi-value">—</div>
+          </div>
+          <div class="card-kpi">
+            <div class="kpi-title">Avg Score (today)</div>
+            <div id="kpi-avg" class="kpi-value">—</div>
+          </div>
+          <div class="card-kpi">
+            <div class="kpi-title">Healthy / Watch / At Risk</div>
+            <div id="kpi-risk" class="kpi-value">—</div>
+          </div>
+        </div>
+        <div class="mini" style="margin-top:10px">Risk distribution</div>
+        <div id="risk-bar" style="height:10px;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:#fff">
+          <div id="rb-green" style="height:100%;width:0;background:var(--ok);float:left"></div>
+          <div id="rb-yellow" style="height:100%;width:0;background:var(--warn);float:left"></div>
+          <div id="rb-red" style="height:100%;width:0;background:var(--risk);float:left"></div>
+        </div>
       </div>
     </div>
 
@@ -93,7 +117,8 @@
       <div class="controls">
         <div class="field" style="grid-column:span 3">
           <label for="search">Search by name</label>
-          <input id="search" type="text" placeholder="e.g. acme, rocket, cloud...">
+          <input id="search" list="name-suggest" type="text" placeholder="Start typing a name…">
+          <datalist id="name-suggest"></datalist>
         </div>
         <div class="field" style="grid-column:span 2">
           <label for="segment">Segment</label>
@@ -159,8 +184,9 @@
             <th style="width:70px">ID</th>
             <th>Name</th>
             <th style="width:140px">Segment</th>
-            <th style="width:110px">Seats</th>
-            <th style="width:140px">Score</th>
+            <th style="width:160px">Company Size</th>
+            <th style="width:120px">Risk</th>
+            <th style="width:120px">Score</th>
             <th style="width:120px">Actions</th>
           </tr>
         </thead>
@@ -176,129 +202,205 @@
   </div>
 
   <script>
-    const WEIGHTS = {
-      login_frequency: 0.25,
-      feature_adoption: 0.20,
-      support_ticket_volume: 0.25,
-      invoice_timeliness: 0.20,
-      api_usage_trend: 0.10
-    };
+    // ---- constants (absolute thresholds as requested) ----
+    const RISK_THRESH = { red: 60, green: 80 }; // <60 red, 60-79 yellow, >=80 green
+    const WEIGHTS = { login_frequency:.25, feature_adoption:.20, support_ticket_volume:.25, invoice_timeliness:.20, api_usage_trend:.10 };
 
+    // ---- app state ----
     const state = {
-      q: "", segment: "", risk: "all",
-      min: 0, max: 100,
-      sort: "health_score", order: "asc",
-      limit: 50, offset: 0,
-      rows: [],
-      p25: 25, p75: 75,
-      charts: new Map(),
-      breakdownCache: new Map()
+      q:"", segment:"", risk:"all",
+      min:0, max:100,
+      sort:"health_score", order:"asc",
+      pageSize:50, page:1,
+      allRows:[], // full dataset (fetched once)
+      viewRows:[], // filtered + sorted
+      charts:new Map(),
+      breakdownCache:new Map()
     };
 
-    const persist = () => localStorage.setItem("dashState", JSON.stringify({
-      q: state.q, segment: state.segment, risk: state.risk,
-      min: state.min, max: state.max, sort: state.sort, order: state.order, limit: state.limit
-    }));
-    const restore = () => {
-      try {
-        const raw = localStorage.getItem("dashState");
-        if (!raw) return;
-        const d = JSON.parse(raw);
-        Object.assign(state, d);
-        document.getElementById("search").value = state.q || "";
-        document.getElementById("segment").value = state.segment || "";
-        document.getElementById("sort").value = state.sort;
-        document.getElementById("order").textContent = state.order === "asc" ? "Asc" : "Desc";
-        document.getElementById("page-size").value = String(state.limit);
-        document.getElementById("score-min").value = state.min;
-        document.getElementById("score-max").value = state.max;
-        document.getElementById("score-min-label").textContent = state.min;
-        document.getElementById("score-max-label").textContent = state.max;
-        document.querySelectorAll(".risk-filter").forEach(b=>{
-          b.classList.toggle("active", b.dataset.risk===state.risk);
-        });
-      } catch {}
-    };
-
+    // ---- elements ----
     const $tbody = document.getElementById("tbody");
-    const $status = document.getElementById("status");
-    const $error = document.getElementById("error");
-    const $empty = document.getElementById("empty");
     const $pageLabel = document.getElementById("page-label");
     const $btnPrev = document.getElementById("prev");
     const $btnNext = document.getElementById("next");
 
+    // ---- utils ----
+    const debounce = (fn,ms)=>{let t;return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
     const fmtScore = s => (s==null?"—":Math.round(s));
     const segBadge = s => `<span class="seg">${s}</span>`;
+    const humanSize = (seats)=>{
+      const n = Number(seats||0);
+      if(!n) return "Unknown";
+      if(n<=10) return "1–10 (Micro)";
+      if(n<=50) return "11–50 (Small)";
+      if(n<=200) return "51–200 (Medium)";
+      if(n<=1000) return "201–1000 (Large)";
+      return "1000+ (Enterprise)";
+    };
+    const riskBucket = score=>{
+      if(score==null) return "watch";
+      if(score < RISK_THRESH.red) return "at_risk";
+      if(score < RISK_THRESH.green) return "watch";
+      return "healthy";
+    };
     function scorePill(score){
-      let cls = "risk-high";
-      if (score < state.p25) cls = "risk-low";
-      else if (score < state.p75) cls = "risk-mid";
+      const b = riskBucket(score);
+      const cls = b==="healthy"?"risk-high":(b==="watch"?"risk-mid":"risk-low");
       return `<span class="score-pill ${cls}">${fmtScore(score)}</span>`;
     }
-    function riskBucket(score){
-      if (score < state.p25) return "at_risk";
-      if (score < state.p75) return "watch";
-      return "healthy";
+
+    // ---- loading + trend ----
+    let trendChart;
+    async function loadTrend() {
+      const seg = document.getElementById("trend-segment").value || "";
+      const url = new URL(location.origin + "/api/health/trend");
+      url.searchParams.set("days", 30);
+      if (seg) url.searchParams.set("segment", seg);
+      const r = await fetch(url.toString());
+      if (!r.ok) return;
+      const data = await r.json();
+      const labels = data.map(p=>p.date);
+      const avg = data.map(p=>p.avg);
+      const p25 = data.map(p=>p.p25);
+      const p75 = data.map(p=>p.p75);
+      const ctx = document.getElementById("trendChart").getContext("2d");
+      if (trendChart) trendChart.destroy();
+      trendChart = new Chart(ctx, {
+        type:"line",
+        data:{ labels,
+          datasets:[
+            { label:"Avg", data:avg, borderWidth:2, tension:.4, fill:true, backgroundColor:"rgba(37,99,235,.08)", borderColor:"#2563eb" },
+            { label:"P25", data:p25, borderWidth:1, borderDash:[4,4], tension:.4, fill:false, borderColor:"#ef4444" },
+            { label:"P75", data:p75, borderWidth:1, borderDash:[4,4], tension:.4, fill:false, borderColor:"#16a34a" },
+          ]},
+        options:{
+          responsive:true,
+          plugins:{ legend:{labels:{color:"#334155"}} },
+          scales:{
+            x:{ ticks:{color:"#64748b"}, grid:{color:"rgba(0,0,0,.05)"} },
+            y:{ min:0,max:100,ticks:{color:"#64748b"}, grid:{color:"rgba(0,0,0,.05)"} }
+          }
+        }
+      });
+      if (data.length){
+        const last = data[data.length-1];
+        document.getElementById("kpi-avg").textContent = Math.round(last.avg);
+      }
     }
-    function buildUrl(){
-      const u = new URL(location.origin + "/api/customers");
-      u.searchParams.set("limit", state.limit);
-      u.searchParams.set("offset", state.offset);
-      u.searchParams.set("sort", state.sort);
-      u.searchParams.set("order", state.order);
-      if (state.q) u.searchParams.set("q", state.q);
-      if (state.segment) u.searchParams.set("segment", state.segment);
-      return u.toString();
+    document.getElementById("trend-segment").addEventListener("change", loadTrend);
+
+    // ---- fetch all customers once, then filter client-side ----
+    async function fetchAll() {
+      const pageLimit = 200;
+      let offset = 0, all = [];
+      while(true){
+        const u = new URL(location.origin + "/api/customers");
+        u.searchParams.set("limit", pageLimit);
+        u.searchParams.set("offset", offset);
+        // we intentionally do NOT pass filters; client-side handles them
+        const res = await fetch(u.toString());
+        if(!res.ok) throw new Error("customers fetch failed");
+        const chunk = await res.json();
+        all = all.concat(chunk);
+        if (chunk.length < pageLimit) break;
+        offset += pageLimit;
+      }
+      state.allRows = all;
+      // fill name suggestions
+      const dl = document.getElementById("name-suggest");
+      dl.innerHTML = "";
+      [...new Set(all.map(r=>r.name))].sort().forEach(n=>{
+        const opt = document.createElement("option"); opt.value=n; dl.appendChild(opt);
+      });
+      updateAtGlance(all);
     }
-    function computePercentiles(arr){
-      if (!arr.length){ state.p25=25; state.p75=75; return; }
-      const xs = [...arr.map(r=>r.health_score||0)].sort((a,b)=>a-b);
-      const q = p => {
-        const idx = (p/100)*(xs.length-1);
-        const lo = Math.floor(idx), hi = Math.ceil(idx);
-        if (hi===lo) return xs[lo];
-        const w = idx - lo;
-        return xs[lo]*(1-w)+xs[hi]*w;
-      };
-      state.p25 = q(25); state.p75 = q(75);
+
+    // ---- At-a-glance cards & bar ----
+    function updateAtGlance(arr){
+      document.getElementById("kpi-total").textContent = arr.length;
+      const counts = { healthy:0, watch:0, at_risk:0 };
+      arr.forEach(r=>counts[riskBucket(r.health_score || 0)]++);
+      const tot = Math.max(1, arr.length);
+      document.getElementById("kpi-risk").textContent =
+        `${counts.healthy}/${counts.watch}/${counts.at_risk}`;
+      document.getElementById("rb-green").style.width = `${(counts.healthy/tot)*100}%`;
+      document.getElementById("rb-yellow").style.width = `${(counts.watch/tot)*100}%`;
+      document.getElementById("rb-red").style.width = `${(counts.at_risk/tot)*100}%`;
     }
-    function updateRiskCounts(arr){
-      const all = arr.length;
-      const risk = arr.filter(r=>riskBucket(r.health_score||0)==="at_risk").length;
-      const watch = arr.filter(r=>riskBucket(r.health_score||0)==="watch").length;
-      const healthy = arr.filter(r=>riskBucket(r.health_score||0)==="healthy").length;
-      document.getElementById("count-all").textContent = all;
+
+    // ---- build filtered/sorted view ----
+    function applyFilters(){
+      let rows = [...state.allRows];
+
+      // text search (case-insensitive substring)
+      if (state.q) {
+        const q = state.q.toLowerCase();
+        rows = rows.filter(r => (r.name||"").toLowerCase().includes(q));
+      }
+
+      // segment
+      if (state.segment) rows = rows.filter(r => (r.segment||"") === state.segment);
+
+      // risk bucket
+      if (state.risk !== "all") rows = rows.filter(r => riskBucket(r.health_score||0) === state.risk);
+
+      // score range
+      rows = rows.filter(r => {
+        const s = r.health_score ?? 0;
+        return s >= state.min && s <= state.max;
+      });
+
+      // sort
+      rows.sort((a,b)=>{
+        const key = state.sort;
+        let va = a[key], vb = b[key];
+        if (key === "name") { va = (va||"").toLowerCase(); vb = (vb||"").toLowerCase(); }
+        if (va < vb) return state.order==="asc" ? -1 : 1;
+        if (va > vb) return state.order==="asc" ? 1 : -1;
+        return 0;
+      });
+
+      state.viewRows = rows;
+      renderPage();
+      updateCounters();
+    }
+
+    // ---- counters in filter buttons ----
+    function updateCounters(){
+      const total = state.viewRows.length;
+      const risk = state.viewRows.filter(r=>riskBucket(r.health_score||0)==="at_risk").length;
+      const watch = state.viewRows.filter(r=>riskBucket(r.health_score||0)==="watch").length;
+      const healthy = state.viewRows.filter(r=>riskBucket(r.health_score||0)==="healthy").length;
+      document.getElementById("count-all").textContent = total;
       document.getElementById("count-risk").textContent = risk;
       document.getElementById("count-watch").textContent = watch;
       document.getElementById("count-healthy").textContent = healthy;
     }
 
-    function showStatus(kind){
-      $status.style.display = kind==="loading" ? "block" : "none";
-      $error.style.display  = kind==="error" ? "block" : "none";
-      $empty.style.display  = "none";
-    }
+    // ---- pagination + render ----
+    function renderPage(){
+      const start = (state.page-1)*state.pageSize;
+      const rows = state.viewRows.slice(start, start+state.pageSize);
 
-    function renderRows(){
       $tbody.innerHTML = "";
-      const inScore = r => (r.health_score??0) >= state.min && (r.health_score??0) <= state.max;
-      let rows = state.rows.filter(inScore);
-      if (state.risk!=="all"){
-        rows = rows.filter(r=>riskBucket(r.health_score||0)===state.risk);
+      if (!rows.length){
+        document.getElementById("empty").style.display = "block";
+      } else {
+        document.getElementById("empty").style.display = "none";
       }
-      if (!rows.length){ $empty.style.display="block"; return; }
-      $empty.style.display="none";
 
       for (const r of rows){
         const tr = document.createElement("tr");
         tr.className = "data-row";
         tr.id = `row-${r.id}`;
+        const riskTxt = riskBucket(r.health_score||0)
+          .replace("at_risk","At Risk").replace("watch","Watch").replace("healthy","Healthy");
         tr.innerHTML = `
           <td>${r.id}</td>
           <td>${r.name}</td>
           <td>${segBadge(r.segment)}</td>
-          <td>${r.seats ?? "—"}</td>
+          <td>${humanSize(r.seats)}</td>
+          <td>${riskTxt}</td>
           <td>${scorePill(r.health_score)}</td>
           <td class="actions">
             <button class="btn expand" data-id="${r.id}">Details</button>
@@ -309,16 +411,21 @@
 
         const exp = document.createElement("tr");
         exp.id = `expand-${r.id}`;
-        exp.innerHTML = `<td colspan="6"><div class="expanded-cell" style="display:none"></div></td>`;
+        exp.innerHTML = `<td colspan="7"><div class="expanded-cell" style="display:none"></div></td>`;
         $tbody.appendChild(exp);
       }
 
+      // wire expanders
       document.querySelectorAll(".expand").forEach(btn=>{
         btn.onclick = async (e)=>{
           const id = Number(e.currentTarget.dataset.id);
           await toggleExpand(id);
         };
       });
+
+      $pageLabel.textContent = `Page ${state.page} of ${Math.max(1, Math.ceil(state.viewRows.length/state.pageSize))}`;
+      $btnPrev.disabled = state.page<=1;
+      $btnNext.disabled = state.page >= Math.ceil(state.viewRows.length/state.pageSize);
     }
 
     function destroyChart(id){
@@ -344,19 +451,16 @@
             <canvas id="donut-${id}" data-chart="${id}" height="220"></canvas>
           </div>
           <div>
-            <div class="mini" style="margin-bottom:10px">Health breakdown (0–100, higher is better):</div>
             ${labels.map((k,i)=>`
-              <div style="display:flex;align-items:center;gap:10px;margin:6px 0">
-                <div style="width:190px;color:var(--muted)">${pretty[k]} (${Math.round(WEIGHTS[k]*100)}%)</div>
-                <div style="flex:1;background:#0d152b;border:1px solid var(--border);border-radius:999px;overflow:hidden;height:8px">
-                  <div style="height:100%;width:${data[i]}%;background:linear-gradient(90deg,#38bdf8,#8b5cf6)"></div>
+              <div style="display:flex;align-items:center;gap:10px;margin:8px 0">
+                <div style="width:200px;color:#475569">${pretty[k]} (${Math.round(WEIGHTS[k]*100)}%)</div>
+                <div style="flex:1;background:#e2e8f0;border:1px solid #e5e7eb;border-radius:999px;overflow:hidden;height:8px">
+                  <div style="height:100%;width:${data[i]}%;background:linear-gradient(90deg,#2563eb,#22c55e)"></div>
                 </div>
                 <div style="width:40px;text-align:right">${data[i]}</div>
               </div>
             `).join("")}
-            <div class="mini" style="margin-top:12px">
-              Donut shows weighted contribution of each factor to the total score.
-            </div>
+            <div class="mini" style="margin-top:8px">Donut shows weighted contribution of each factor to the total.</div>
           </div>
         </div>
       `;
@@ -366,7 +470,7 @@
         data: { labels: labels.map(k=>pretty[k]), datasets: [{ data: contrib, borderWidth: 0 }] },
         options: {
           responsive: true,
-          plugins: { legend:{position:"bottom", labels:{color:"#cbd5e1"}}, tooltip:{enabled:true} },
+          plugins: { legend:{position:"bottom"}, tooltip:{enabled:true} },
           cutout: "60%"
         }
       });
@@ -378,6 +482,7 @@
       const opened = cell.style.display !== "none";
       if (opened){ cell.style.display="none"; destroyChart(id); return; }
 
+      // close others
       document.querySelectorAll(".expanded-cell").forEach(n=>{
         if (n!==cell){ n.style.display="none"; }
       });
@@ -399,91 +504,52 @@
       history.replaceState(null, "", `#customer-${id}`);
     }
 
-    const debounce = (fn,ms)=>{let t;return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
-
-    function updatePagination(arr){
-      const page = Math.floor(state.offset / state.limit) + 1;
-      document.getElementById("page-label").textContent = `Page ${page}`;
-      document.getElementById("prev").disabled = state.offset<=0;
-      document.getElementById("next").disabled = arr.length < state.limit;
-    }
-
-    async function fetchAndRender(){
-      persist();
-      showStatus("loading");
-      try{
-        const url = buildUrl();
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("bad status");
-        const arr = await res.json();
-        computePercentiles(arr);
-        updateRiskCounts(arr);
-        state.rows = arr;
-        renderRows();
-        updatePagination(arr);
-        if (!arr.length) { $empty.style.display="block"; }
-        showStatus("");
-        openDeepLinkOnce();
-      } catch(err){
-        console.error(err);
-        showStatus("error");
-      }
-    }
-
-    // Controls wiring
-    restore();
-
+    // ---- controls wiring ----
     document.getElementById("search").addEventListener("input", debounce(e=>{
-      state.q = e.target.value.trim(); state.offset=0; fetchAndRender();
-    }, 300));
-
+      state.q = e.target.value.trim(); state.page=1; applyFilters();
+    }, 150));
     document.getElementById("segment").addEventListener("change", e=>{
-      state.segment = e.target.value; state.offset=0; fetchAndRender();
+      state.segment = e.target.value; state.page=1; applyFilters();
     });
-
     document.querySelectorAll(".risk-filter").forEach(b=>{
       b.addEventListener("click", ()=>{
         document.querySelectorAll(".risk-filter").forEach(x=>x.classList.remove("active"));
         b.classList.add("active");
-        state.risk = b.dataset.risk; state.offset=0; fetchAndRender();
+        state.risk = b.dataset.risk; state.page=1; applyFilters();
       });
     });
-
     document.getElementById("score-min").addEventListener("input", e=>{
       state.min = Number(e.target.value);
       if (state.min > state.max){ state.min = state.max; e.target.value = state.min; }
       document.getElementById("score-min-label").textContent = state.min;
-      renderRows();
+      state.page=1; applyFilters();
     });
     document.getElementById("score-max").addEventListener("input", e=>{
       state.max = Number(e.target.value);
       if (state.max < state.min){ state.max = state.min; e.target.value = state.max; }
       document.getElementById("score-max-label").textContent = state.max;
-      renderRows();
+      state.page=1; applyFilters();
     });
-
     document.getElementById("sort").addEventListener("change", e=>{
-      state.sort = e.target.value; state.offset=0; fetchAndRender();
+      state.sort = e.target.value; state.page=1; applyFilters();
     });
     document.getElementById("order").addEventListener("click", ()=>{
       state.order = state.order==="asc" ? "desc" : "asc";
       document.getElementById("order").textContent = state.order==="asc" ? "Asc" : "Desc";
-      state.offset=0; fetchAndRender();
+      state.page=1; applyFilters();
     });
-
     document.getElementById("page-size").addEventListener("change", e=>{
-      state.limit = Number(e.target.value); state.offset=0; fetchAndRender();
+      state.pageSize = Number(e.target.value); state.page=1; renderPage();
     });
-    document.getElementById("prev").addEventListener("click", ()=>{ state.offset = Math.max(0, state.offset - state.limit); fetchAndRender(); });
-    document.getElementById("next").addEventListener("click", ()=>{ state.offset = state.offset + state.limit; fetchAndRender(); });
+    $btnPrev.addEventListener("click", ()=>{ state.page = Math.max(1, state.page-1); renderPage(); });
+    $btnNext.addEventListener("click", ()=>{ state.page = Math.min(Math.ceil(state.viewRows.length/state.pageSize), state.page+1); renderPage(); });
 
     document.getElementById("export").addEventListener("click", ()=>{
-      const rows = state.rows
-        .filter(r => (r.health_score??0) >= state.min && (r.health_score??0) <= state.max)
-        .filter(r => state.risk==="all" || riskBucket(r.health_score||0)===state.risk);
-      const header = ["id","name","segment","seats","health_score"];
+      const start = (state.page-1)*state.pageSize;
+      const rows = state.viewRows.slice(start, start+state.pageSize);
+      const header = ["id","name","segment","company_size","risk","health_score"];
       const csv = [header.join(",")].concat(rows.map(r =>
-        [r.id, JSON.stringify(r.name), r.segment, r.seats ?? "", Math.round(r.health_score ?? 0)].join(",")
+        [r.id, JSON.stringify(r.name), r.segment, JSON.stringify(humanSize(r.seats)), riskBucket(r.health_score||0), Math.round(r.health_score ?? 0)].join(",")
       )).join("\n");
       const blob = new Blob([csv], {type:"text/csv"});
       const a = document.createElement("a");
@@ -493,67 +559,11 @@
       URL.revokeObjectURL(a.href);
     });
 
-    // Deep link open
-    let openedDeepLink = false;
-    function openDeepLinkOnce(){
-      if (openedDeepLink) return;
-      const m = location.hash.match(/#customer-(\d+)/);
-      if (m){
-        const id = Number(m[1]);
-        const btn = document.querySelector(`.expand[data-id="${id}"]`);
-        if (btn) { openedDeepLink = true; btn.click(); }
-      }
-    }
-
-    // Trend chart
-    let trendChart;
-    async function loadTrend() {
-      const seg = document.getElementById("trend-segment").value || "";
-      const url = new URL(location.origin + "/api/health/trend");
-      url.searchParams.set("days", 30);
-      if (seg) url.searchParams.set("segment", seg);
-      const r = await fetch(url.toString());
-      if (!r.ok) return;
-      const data = await r.json();
-      renderTrendChart(data);
-      if (data.length) {
-        const last = data[data.length-1];
-        document.getElementById("glance").innerHTML =
-          `Avg score today: <b>${Math.round(last.avg)}</b> &nbsp;|&nbsp; P25: ${Math.round(last.p25)} &nbsp;|&nbsp; P75: ${Math.round(last.p75)}`;
-      }
-    }
-    function renderTrendChart(points){
-      const labels = points.map(p=>p.date);
-      const avg = points.map(p=>p.avg);
-      const p25 = points.map(p=>p.p25);
-      const p75 = points.map(p=>p.p75);
-      const ctx = document.getElementById("trendChart").getContext("2d");
-      if (trendChart) trendChart.destroy();
-      trendChart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels,
-          datasets: [
-            { label: "Avg", data: avg, borderWidth: 2, tension: .25, fill: false },
-            { label: "P25", data: p25, borderWidth: 1, borderDash:[4,4], tension: .25, fill: false },
-            { label: "P75", data: p75, borderWidth: 1, borderDash:[4,4], tension: .25, fill: false },
-          ]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend:{labels:{color:"#cbd5e1"}} },
-          scales: {
-            x: { ticks:{color:"#94a3b8"}, grid:{color:"rgba(255,255,255,.06)"} },
-            y: { min:0, max:100, ticks:{color:"#94a3b8"}, grid:{color:"rgba(255,255,255,.06)"} }
-          }
-        }
-      });
-    }
-    document.getElementById("trend-segment").addEventListener("change", loadTrend);
-
-    // GO!
-    loadTrend();
-    fetchAndRender();
+    // ---- init ----
+    (async function init(){
+      await Promise.all([fetchAll(), loadTrend()]);
+      applyFilters();
+    })();
   </script>
 </body>
 </html>
