@@ -127,7 +127,7 @@
     </p>
     <p class="subsub">
       Scores blend <b>Login Frequency</b>, <b>Feature Adoption</b>, <b>Ticket Volume</b>,
-      <b>Invoice Timeliness</b>, and <b>API Usage Trend</b>. Higher is better (0–100).
+      <b>Invoice Timeliness</b>, and <b>API Usage Trend</b>. Higher is better.
     </p>
   </header>
 
@@ -139,8 +139,8 @@
         <li><b>Login Frequency</b>: share of active days (size/segment-normalized).</li>
         <li><b>Feature Adoption</b>: # of distinct key features used in last 30 days.</li>
         <li><b>Ticket Volume</b>: fewer tickets in last 30 days → higher score (normalized).</li>
-        <li><b>Invoice Timeliness</b>: on-time vs late invoices over the last .</li>
-        <li><b>API Usage Trend</b>: last 7 days vs the 7 days before (up=better).</li>
+        <li><b>Invoice Timeliness</b>: on-time vs late invoices.</li>
+        <li><b>API Usage Trend</b>: last 7 days vs the 7 days before (up is better).</li>
       </ul>
     </div>
   </div>
@@ -481,53 +481,51 @@
 
     function destroyChart(id){ const ch = state.charts.get(id); if (ch){ ch.destroy(); state.charts.delete(id); } }
 
-    function renderBreakdown(id, cell, factors) {
-      // --- factor keys & labels (must match backend/scoring keys) ---
-      const KEYS = [
-        "login_frequency",
-        "feature_adoption",
-        "support_ticket_volume",
-        "invoice_timeliness",
-        "api_usage_trend",
-      ];
-      const LABEL = {
-        login_frequency: "Login Frequency",
-        feature_adoption: "Feature Adoption",
-        support_ticket_volume: "Ticket Volume",
-        invoice_timeliness: "Invoice Timeliness",
-        api_usage_trend: "API Usage Trend",
+  
+
+    function renderBreakdown(id, cell, factors){
+      const labels = ["login_frequency","feature_adoption","support_ticket_volume","invoice_timeliness","api_usage_trend"];
+      const pretty = {
+        login_frequency:"Login Frequency",
+        feature_adoption:"Feature Adoption",
+        support_ticket_volume:"Ticket Volume",
+        invoice_timeliness:"Invoice Timeliness",
+        api_usage_trend:"API Usage Trend"
       };
-      const COLORS = [
-        "#3b82f6", // login  (blue)
-        "#ef476f", // feature (pink/red)
-        "#f59e0b", // tickets (orange)
-        "#facc15", // invoices (yellow)
-        "#14b8a6", // api trend (teal)
-      ];
+      // raw component scores (0–100)
+      const data = labels.map(k => Math.round(factors[k] ?? 0));
+      // weighted contributions used for the donut
+      const contrib = labels.map(k => Math.round((factors[k] ?? 0) * WEIGHTS[k]));
 
-      // --- numbers: raw (0-100) and weighted contribution (sum ≈ total) ---
-      const raw = KEYS.map(k => Math.max(0, Math.min(100, Number(factors?.[k] ?? 0))));
-      const contrib = KEYS.map((k, i) => Math.max(0, raw[i] * (WEIGHTS[k] ?? 0)));
-
-      // --- right panel (bars) HTML ---
-      const barsHtml = KEYS.map((k, i) => `
-        <div style="display:flex;align-items:center;gap:10px;margin:8px 0">
-          <div style="width:220px;color:#475569">${LABEL[k]} (${Math.round((WEIGHTS[k] ?? 0) * 100)}%)</div>
-          <div style="flex:1;background:#e2e8f0;border:1px solid #e5e7eb;border-radius:999px;overflow:hidden;height:8px">
-            <div style="height:100%;width:${raw[i]}%;background:linear-gradient(90deg,#2563eb,#22c55e)"></div>
-          </div>
-          <div style="width:40px;text-align:right">${Math.round(raw[i])}</div>
-        </div>
-      `).join("");
-
-      // --- inject content (left = donut, right = bars) ---
       cell.innerHTML = `
         <div class="expanded-grid">
-          <div class="donut-box">
-            <canvas id="donut-${id}" data-chart="${id}"></canvas>
-          </div>
           <div>
-            ${barsHtml}
+            <div class="mini" style="margin:0 0 6px 2px">
+              <b>How this customer’s score is built</b> (weighted contributions)
+            </div>
+            <canvas id="donut-${id}" data-chart="${id}" height="220"></canvas>
+          </div>
+
+          <div>
+            <!-- column subtitles -->
+            <div class="mini" style="display:grid;grid-template-columns:220px 1fr 40px;gap:10px;align-items:end;margin:0 0 6px 0">
+              <div></div>
+              <div style="text-align:center"><b>Percentage of each component</b></div>
+              <div style="text-align:right"><b>Customer’s score</b></div>
+            </div>
+
+            ${labels.map((k,i)=>`
+              <div style="display:grid;grid-template-columns:220px 1fr 40px;gap:10px;align-items:center;margin:8px 0">
+                <div style="color:#475569">
+                  ${pretty[k]} <span class="mini" style="color:#64748b">(${Math.round(WEIGHTS[k]*100)}%)</span>
+                </div>
+                <div style="height:8px;background:#e2e8f0;border:1px solid #e5e7eb;border-radius:999px;overflow:hidden">
+                  <div style="height:100%;width:${data[i]}%;background:linear-gradient(90deg,#2563eb,#22c55e)"></div>
+                </div>
+                <div style="text-align:right">${data[i]}</div>
+              </div>
+            `).join("")}
+
             <div class="mini" style="margin-top:8px">
               Donut numbers show weighted contribution (sum ≈ total score). Zeros are hidden.
             </div>
@@ -535,52 +533,30 @@
         </div>
       `;
 
-      // --- crisp, square sizing for the donut canvas (no CSS scaling blur) ---
-      const canvas = document.getElementById(`donut-${id}`);
-      const box = canvas.parentElement.getBoundingClientRect();
-      const cssSize = Math.min(420, Math.max(260, box.width));   // square size in CSS px
-      const dpr = window.devicePixelRatio || 1;
-      canvas.style.width = `${cssSize}px`;
-      canvas.style.height = `${cssSize}px`;
-      canvas.width = Math.round(cssSize * dpr);                   // actual pixel buffer
-      canvas.height = Math.round(cssSize * dpr);
-
-      // --- build donut chart ---
-      const ctx = canvas.getContext("2d");
+      const ctx = document.getElementById(`donut-${id}`).getContext("2d");
       const chart = new Chart(ctx, {
         type: "doughnut",
         data: {
-          labels: KEYS.map(k => LABEL[k]),
-          datasets: [{
-            data: contrib,
-            backgroundColor: COLORS,
-            borderWidth: 0,
-            hoverOffset: 2
-          }]
+          labels: labels.map(k=>pretty[k]),
+          datasets: [{ data: contrib, borderWidth: 0 }]
         },
         options: {
-          responsive: false,                  // we sized the canvas manually
-          maintainAspectRatio: false,
-          cutout: "58%",
-          animation: { duration: 250 },
+          responsive: true,
           plugins: {
-            legend: { position: "bottom" },
-            tooltip: { enabled: true },
-            datalabels: {
-              color: "#111",
-              formatter: v => (v && v > 0) ? Math.round(v) : null,  // hide zeros
-              font: { weight: "700" }
+            legend:{ position:"bottom" },
+            tooltip:{ enabled:true },
+            datalabels:{
+              color:"#111",
+              formatter:(v)=> (v && v>0) ? Math.round(v) : null,   // hide zeros
+              font:{ weight:"700" }
             }
-          }
+          },
+          cutout: "60%"
         },
-        plugins: [ChartDataLabels]
+        plugins:[ChartDataLabels]
       });
-
-      // track the chart so we can destroy it later when collapsing / resizing
       state.charts.set(id, chart);
     }
-
-
 
     async function toggleExpand(id, btn) {
       const cell = document.querySelector(`#expand-${id} .expanded-cell`);
