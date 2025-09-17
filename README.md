@@ -22,7 +22,7 @@ A small, production-style sample that calculates **customer health scores** and 
 # from the repo root (contains docker-compose.yml)
 docker compose up --build
 
-
+```
 ---
 **Dashboard:** http://localhost:8000/api/dashboard
 
@@ -67,20 +67,36 @@ docker compose up --build
 ---
 
 ## Project Layout
+```
 backend/
-  Dockerfile
-  app/
-    main.py              # FastAPI app, lifespan, static mounting
-    db.py                # engine, SessionLocal, Base
-    models.py            # SQLAlchemy models (Customer, Event, etc.)
-    schemas.py           # Pydantic request/response models
-    scoring.py           # health scoring logic (weighted factors)
-    seed.py              # synthetic data generator
-    routers/
-      customers.py       # list customers + per-customer health
-      events.py          # validate + create events
-      analytics.py       # /api/health/summary, /api/health/trend
-    static/
-      dashboard.html     # single-file dashboard (HTML+JS)
-docker-compose.yml
 
+  Dockerfile
+  
+  app/
+  
+    main.py              # FastAPI app, lifespan, static mounting
+    
+    db.py                # engine, SessionLocal, Base
+    
+    models.py            # SQLAlchemy models (Customer, Event, etc.)
+    
+    schemas.py           # Pydantic request/response models
+    
+    scoring.py           # health scoring logic (weighted factors)
+    
+    seed.py              # synthetic data generator
+    
+    routers/
+      
+      customers.py       # list customers + per-customer health
+      
+      events.py          # validate + create events
+      
+      analytics.py       # /api/health/summary, /api/health/trend
+   
+    static/
+      
+      dashboard.html     # single-file dashboard (HTML+JS)
+
+docker-compose.yml
+```
