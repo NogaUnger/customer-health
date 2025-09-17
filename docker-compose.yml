@@ -24,18 +24,24 @@ services:
       PYTHONPATH: /code
       DATABASE_URL: postgresql+psycopg://app:app@db:5432/app
       SEED_ON_START: "true"
-      WATCHFILES_FORCE_POLLING: "true"   # helps hot-reload on Windows/macOS file shares
+      WATCHFILES_FORCE_POLLING: "true"
     volumes:
-      - ./backend:/code                   # live-mount your source into the container
+      - ./backend:/code
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-    command: >
-      uvicorn app.main:app
-      --host 0.0.0.0 --port 8000
-      --reload --reload-dir /code         # watch the mounted code
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+      - --reload-dir
+      - /code
 
 volumes:
   dbdata:
