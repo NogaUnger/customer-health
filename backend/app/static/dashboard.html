@@ -13,13 +13,18 @@
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
-    header{padding:28px 20px 8px}
-    h1{margin:0 0 8px;font-size:28px;letter-spacing:.3px}
-    .sub{color:var(--muted);max-width:980px;line-height:1.5}
+    header{padding:28px 20px 6px}
+    h1{margin:0;font-size:42px;letter-spacing:.3px;text-align:center}
+    .sub{color:var(--muted);max-width:980px;line-height:1.5;margin:10px auto 0;text-align:center}
     .shell{padding:10px 20px 40px}
     .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-    .controls{display:grid;gap:10px;grid-template-columns:repeat(12, minmax(0,1fr));align-items:end}
+    .controls{
+      display:grid; gap:12px;
+      grid-template-columns: repeat(12, minmax(0,1fr));
+      align-items:end
+    }
     .controls .field{display:flex;flex-direction:column;gap:6px}
+    .field.right{justify-self:end}
     label{font-size:12px;color:var(--muted)}
     input[type="text"], select {height:38px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);padding:0 10px;outline:none}
     input[type="range"]{accent-color:var(--accent)}
@@ -27,7 +32,7 @@
     .btn:hover{background:#f8fafc}
     .btn.ghost{background:transparent}
     .btn.active{outline:2px solid var(--accent)}
-    .badges{display:flex;gap:6px;align-items:center}
+    .badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
     .badge{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:#fff}
     .seg{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#eef2ff;color:#334155}
     table{width:100%;border-collapse:separate;border-spacing:0 8px}
@@ -54,6 +59,8 @@
     .kpi-title{font-size:12px;color:var(--muted)}
     .kpi-value{font-size:22px;font-weight:700;margin-top:2px}
     .help{margin:10px 0 2px;font-size:12px;color:var(--muted)}
+    .cols-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    ul.clean{margin:6px 0 0 18px; padding:0; color:#334155; line-height:1.6}
     @media (max-width:1000px){ .grid{grid-template-columns:1fr} }
     @media (max-width:900px){ .expanded-grid{grid-template-columns:1fr} .controls{grid-template-columns:1fr 1fr}}
   </style>
@@ -64,21 +71,21 @@
   <header>
     <h1>Customer Health</h1>
     <p class="sub">
-      Scores blend <b>Login Frequency</b>, <b>Feature Adoption</b>, <b>Ticket Volume</b>, <b>Invoice Timeliness</b>,
-      and <b>API Usage Trend</b>. Higher is better (0–100).
+      Scores blend <b>Login Frequency</b>, <b>Feature Adoption</b>, <b>Ticket Volume</b>,
+      <b>Invoice Timeliness</b> (last <b>120 days</b>), and <b>API Usage Trend</b>. Higher is better (0–100).
     </p>
   </header>
 
-  <!-- Score components cheat-sheet -->
+  <!-- Cheat-sheet -->
   <div class="shell">
     <div class="panel">
       <div style="font-weight:600;margin-bottom:6px">What makes up the score?</div>
-      <ul style="margin:6px 0 0 18px; padding:0; color:#334155; line-height:1.6">
-        <li><b>Login Frequency</b>: more active days in last 30 days (normalized by company size & segment).</li>
-        <li><b>Feature Adoption</b>: how many unique key features used in last 30 days.</li>
-        <li><b>Ticket Volume</b>: fewer support tickets in last 30 days → higher score (normalized).</li>
-        <li><b>Invoice Timeliness</b>: ratio of on-time vs late invoices over 6 months.</li>
-        <li><b>API Usage Trend</b>: last 7 days vs the 7 days before (up = better, down = worse).</li>
+      <ul class="clean">
+        <li><b>Login Frequency</b>: share of active days (size/segment-normalized).</li>
+        <li><b>Feature Adoption</b>: # of distinct key features used in last 30 days.</li>
+        <li><b>Ticket Volume</b>: fewer tickets in last 30 days → higher score (normalized).</li>
+        <li><b>Invoice Timeliness</b>: on-time vs late invoices over the last <b>120 days</b>.</li>
+        <li><b>API Usage Trend</b>: last 7 days vs the 7 days before (up=better).</li>
       </ul>
     </div>
   </div>
@@ -103,19 +110,20 @@
       <div class="panel">
         <div id="summary-line" style="font-weight:600;margin-bottom:8px">—</div>
         <div class="cards">
-          <div class="card-kpi">
-            <div class="kpi-title">Customers</div>
-            <div id="kpi-total" class="kpi-value">—</div>
-          </div>
-          <div class="card-kpi">
-            <div class="kpi-title">Avg Score (today)</div>
-            <div id="kpi-avg" class="kpi-value">—</div>
-          </div>
-          <div class="card-kpi">
-            <div class="kpi-title">Healthy / Watch / At Risk</div>
-            <div id="kpi-risk" class="kpi-value">—</div>
-          </div>
+          <div class="card-kpi"><div class="kpi-title">Customers</div><div id="kpi-total" class="kpi-value">—</div></div>
+          <div class="card-kpi"><div class="kpi-title">Avg Score (today)</div><div id="kpi-avg" class="kpi-value">—</div></div>
+          <div class="card-kpi"><div class="kpi-title">Healthy / Watch / At Risk</div><div id="kpi-risk" class="kpi-value">—</div></div>
         </div>
+
+        <div class="help">Average by component</div>
+        <div class="cols-2 mini" id="avg-components">—</div>
+
+        <div class="help">Top & Bottom (score)</div>
+        <div class="cols-2" id="top-bottom">
+          <div><div style="font-weight:600;margin-bottom:4px">Top 5</div><ul id="top5" class="clean"></ul></div>
+          <div><div style="font-weight:600;margin-bottom:4px">Bottom 5</div><ul id="bottom5" class="clean"></ul></div>
+        </div>
+
         <div class="help">Risk distribution</div>
         <div id="risk-bar" style="height:10px;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:#fff">
           <div id="rb-green" style="height:100%;width:0;background:var(--ok);float:left"></div>
@@ -128,12 +136,13 @@
     <!-- CONTROLS -->
     <div class="sticky-controls panel" style="margin-top:12px">
       <div class="controls">
-        <div class="field" style="grid-column:span 3">
+        <div class="field" style="grid-column: 1 / span 3">
           <label for="search">Search by name</label>
           <input id="search" list="name-suggest" type="text" placeholder="Start typing a name…">
           <datalist id="name-suggest"></datalist>
         </div>
-        <div class="field" style="grid-column:span 2">
+
+        <div class="field" style="grid-column: 4 / span 2">
           <label for="segment">Segment</label>
           <select id="segment">
             <option value="">All</option>
@@ -142,7 +151,8 @@
             <option value="enterprise">Enterprise</option>
           </select>
         </div>
-        <div class="field" style="grid-column:span 3">
+
+        <div class="field" style="grid-column: 6 / span 3">
           <label>Risk</label>
           <div class="badges">
             <button class="btn ghost risk-filter active" data-risk="all">All <span id="count-all" class="badge">0</span></button>
@@ -151,7 +161,8 @@
             <button class="btn ghost risk-filter" data-risk="healthy">Healthy <span id="count-healthy" class="badge">0</span></button>
           </div>
         </div>
-        <div class="field" style="grid-column:span 2">
+
+        <div class="field" style="grid-column: 1 / span 4">
           <label>Score range</label>
           <div style="display:flex;gap:8px;align-items:center">
             <span id="score-min-label" class="badge">0</span>
@@ -160,8 +171,9 @@
             <span id="score-max-label" class="badge">100</span>
           </div>
         </div>
-        <div class="field" style="grid-column:span 2">
-          <label for="sort">Sort</label>
+
+        <div class="field right" style="grid-column: 7 / span 3">
+          <label for="sort" style="text-align:right">Sort</label>
           <div style="display:flex;gap:8px">
             <select id="sort">
               <option value="health_score">Score</option>
@@ -171,17 +183,17 @@
             <button id="order" class="btn" title="Toggle order">Asc</button>
           </div>
         </div>
-        <div class="field" style="grid-column:span 2">
+
+        <div class="field" style="grid-column: 10 / span 2">
           <label for="page-size">Page size</label>
           <select id="page-size">
-            <option>10</option>
-            <option>25</option>
-            <option selected>50</option>
-            <option>100</option>
+            <option>10</option><option>25</option><option selected>50</option><option>100</option>
           </select>
         </div>
-        <div class="field" style="grid-column:span 12;display:flex;gap:8px;justify-content:flex-end">
-          <button id="export" class="btn">Export CSV (current view)</button>
+
+        <div class="field" style="grid-column: 12 / span 1; justify-self:end">
+          <label>&nbsp;</label>
+          <button id="export" class="btn">Export CSV</button>
         </div>
       </div>
     </div>
@@ -200,7 +212,7 @@
             <th style="width:160px">Company Size</th>
             <th style="width:120px">Risk</th>
             <th style="width:120px">Score</th>
-            <th style="width:120px">Actions</th>
+            <th style="width:160px">Actions</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -214,22 +226,17 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <script>
-    // ---- constants ----
     const RISK_RED = 60, RISK_GREEN = 80;
     const WEIGHTS = { login_frequency:.25, feature_adoption:.20, support_ticket_volume:.25, invoice_timeliness:.20, api_usage_trend:.10 };
 
-    // ---- state ----
     const state = {
-      q:"", segment:"", risk:"all",
-      min:0, max:100,
-      sort:"health_score", order:"asc",
-      pageSize:50, page:1,
-      allRows:[], viewRows:[],
-      charts:new Map(), breakdownCache:new Map()
+      q:"", segment:"", risk:"all", min:0, max:100, sort:"health_score", order:"asc",
+      pageSize:50, page:1, allRows:[], viewRows:[], charts:new Map(), breakdownCache:new Map()
     };
 
-    // ---- helpers ----
     const debounce = (fn,ms)=>{let t;return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
     const fmtScore = s => (s==null?"—":Math.round(s));
     const segBadge = s => `<span class="seg">${s}</span>`;
@@ -249,33 +256,53 @@
       return `<span class="score-pill ${cls}">${fmtScore(s)}</span>`;
     };
 
-    // ---- trend + summary ----
     let trendChart;
     async function loadTrendAndSummary() {
       const seg = document.getElementById("trend-segment").value || "";
-      const trendUrl = new URL(location.origin + "/api/health/trend"); trendUrl.searchParams.set("days", 30); if (seg) trendUrl.searchParams.set("segment", seg);
-      const sumUrl = new URL(location.origin + "/api/health/summary"); if (seg) sumUrl.searchParams.set("segment", seg);
+      const trendUrl = new URL(location.origin + "/api/health/trend"); trendUrl.searchParams.set("days", 30); if(seg) trendUrl.searchParams.set("segment", seg);
+      const sumUrl = new URL(location.origin + "/api/health/summary"); if(seg) sumUrl.searchParams.set("segment", seg);
 
       const [trendRes, sumRes] = await Promise.all([fetch(trendUrl), fetch(sumUrl)]);
       if (trendRes.ok) {
-        const data = await trendRes.json();
-        renderTrend(data);
-        if (data.length){
-          document.getElementById("kpi-avg").textContent = Math.round(data[data.length-1].avg);
-        }
+        const data = await trendRes.json(); renderTrend(data);
+        if (data.length) document.getElementById("kpi-avg").textContent = Math.round(data[data.length-1].avg);
       }
       if (sumRes.ok) {
         const S = await sumRes.json();
         document.getElementById("kpi-total").textContent = S.total;
         document.getElementById("kpi-risk").textContent = `${S.healthy}/${S.watch}/${S.at_risk}`;
         document.getElementById("summary-line").textContent =
-          `✅ ${S.healthy} customers healthy, ⚠️ ${S.at_risk} at risk, average login = ${Math.round(S.avg_login)}%`;
+          `✅ ${S.healthy} healthy, ⚠️ ${S.at_risk} at risk — average score = ${Math.round(S.avg_score)}.`;
+
+        // component averages
+        const a = S.avg_factors || {};
+        document.getElementById("avg-components").innerHTML = `
+          <div>Login: <b>${Math.round(a.login_frequency||0)}%</b></div>
+          <div>Features: <b>${Math.round(a.feature_adoption||0)}%</b></div>
+          <div>Tickets: <b>${Math.round(a.support_ticket_volume||0)}%</b></div>
+          <div>Invoices (120d): <b>${Math.round(a.invoice_timeliness||0)}%</b></div>
+          <div>API trend: <b>${Math.round(a.api_usage_trend||0)}%</b></div>
+        `;
+
+        // top/bottom lists
+        const top = document.getElementById("top5"); top.innerHTML = "";
+        (S.top5 || []).forEach(r=>{
+          const li = document.createElement("li"); li.textContent = `${r.name} — ${r.score}`;
+          top.appendChild(li);
+        });
+        const bot = document.getElementById("bottom5"); bot.innerHTML = "";
+        (S.bottom5 || []).forEach(r=>{
+          const li = document.createElement("li"); li.textContent = `${r.name} — ${r.score}`;
+          bot.appendChild(li);
+        });
+
         const tot = Math.max(1, S.total);
         document.getElementById("rb-green").style.width = `${(S.healthy/tot)*100}%`;
         document.getElementById("rb-yellow").style.width = `${(S.watch/tot)*100}%`;
         document.getElementById("rb-red").style.width = `${(S.at_risk/tot)*100}%`;
       }
     }
+
     function renderTrend(points){
       const labels = points.map(p=>p.date);
       const avg = points.map(p=>p.avg);
@@ -303,7 +330,6 @@
     }
     document.getElementById("trend-segment").addEventListener("change", loadTrendAndSummary);
 
-    // ---- fetch all customers once; filter client-side ----
     async function fetchAll() {
       const pageLimit = 200; let offset = 0, all = [];
       while(true){
@@ -314,15 +340,16 @@
         if (chunk.length < pageLimit) break; offset += pageLimit;
       }
       state.allRows = all;
+
       // suggestions
       const dl = document.getElementById("name-suggest"); dl.innerHTML = "";
       [...new Set(all.map(r=>r.name))].sort().forEach(n=>{
         const opt = document.createElement("option"); opt.value=n; dl.appendChild(opt);
       });
+
       applyFilters();
     }
 
-    // ---- filters & view ----
     function applyFilters(){
       let rows = [...state.allRows];
       if (state.q) { const q = state.q.toLowerCase(); rows = rows.filter(r => (r.name||"").toLowerCase().includes(q)); }
@@ -354,14 +381,13 @@
       document.getElementById("count-healthy").textContent = healthy;
     }
 
-    // ---- table render + pagination ----
     function renderPage(){
       const start = (state.page-1)*state.pageSize;
       const rows = state.viewRows.slice(start, start+state.pageSize);
       const $tbody = document.getElementById("tbody");
       const $empty = document.getElementById("empty");
       $tbody.innerHTML = "";
-      if (!rows.length){ $empty.style.display="block"; } else { $empty.style.display="none"; }
+      $empty.style.display = rows.length ? "none" : "block";
 
       for (const r of rows){
         const tr = document.createElement("tr");
@@ -376,7 +402,7 @@
           <td>${riskTxt}</td>
           <td>${scorePill(r.health_score)}</td>
           <td class="actions">
-            <button class="btn expand" data-id="${r.id}">Details</button>
+            <button class="btn expand" data-id="${r.id}">More information</button>
           </td>
         `;
         $tbody.appendChild(tr);
@@ -388,7 +414,7 @@
       }
 
       document.querySelectorAll(".expand").forEach(btn=>{
-        btn.onclick = async (e)=>{ await toggleExpand(Number(e.currentTarget.dataset.id)); };
+        btn.onclick = async (e)=>{ await toggleExpand(Number(e.currentTarget.dataset.id), e.currentTarget); };
       });
 
       const pages = Math.max(1, Math.ceil(state.viewRows.length/state.pageSize));
@@ -397,7 +423,6 @@
       document.getElementById("next").disabled = state.page>=pages;
     }
 
-    // ---- row breakdown (donut + bars) ----
     function destroyChart(id){ const ch = state.charts.get(id); if (ch){ ch.destroy(); state.charts.delete(id); } }
 
     function renderBreakdown(id, cell, factors){
@@ -406,7 +431,7 @@
         login_frequency:"Login Frequency",
         feature_adoption:"Feature Adoption",
         support_ticket_volume:"Ticket Volume",
-        invoice_timeliness:"Invoice Timeliness",
+        invoice_timeliness:"Invoice Timeliness (120d)",
         api_usage_trend:"API Usage Trend"
       };
       const data = labels.map(k => Math.round(factors[k] ?? 0));
@@ -420,14 +445,14 @@
           <div>
             ${labels.map((k,i)=>`
               <div style="display:flex;align-items:center;gap:10px;margin:8px 0">
-                <div style="width:200px;color:#475569">${pretty[k]} (${Math.round(WEIGHTS[k]*100)}%)</div>
+                <div style="width:220px;color:#475569">${pretty[k]} (${Math.round(WEIGHTS[k]*100)}%)</div>
                 <div style="flex:1;background:#e2e8f0;border:1px solid #e5e7eb;border-radius:999px;overflow:hidden;height:8px">
                   <div style="height:100%;width:${data[i]}%;background:linear-gradient(90deg,#2563eb,#22c55e)"></div>
                 </div>
                 <div style="width:40px;text-align:right">${data[i]}</div>
               </div>
             `).join("")}
-            <div class="mini" style="margin-top:8px">Donut numbers show weighted contribution (sum ≈ total score).</div>
+            <div class="mini" style="margin-top:8px">Donut numbers show weighted contribution (sum ≈ total score). Zeros are hidden.</div>
           </div>
         </div>
       `;
@@ -436,7 +461,10 @@
         type: "doughnut",
         data: {
           labels: labels.map(k=>pretty[k]),
-          datasets: [{ data: contrib, borderWidth: 0 }]
+          datasets: [{
+            data: contrib,
+            borderWidth: 0,
+          }]
         },
         options: {
           responsive: true,
@@ -445,7 +473,7 @@
             tooltip:{enabled:true},
             datalabels:{
               color:"#111",
-              formatter:(v)=>Math.round(v),
+              formatter:(v)=> (v && v>0) ? Math.round(v) : null,   // hide zeros
               font:{weight:"700"}
             }
           },
@@ -456,21 +484,24 @@
       state.charts.set(id, chart);
     }
 
-    async function toggleExpand(id){
+    async function toggleExpand(id, btn){
       const cell = document.querySelector(`#expand-${id} .expanded-cell`);
       const opened = cell.style.display !== "none";
-      if (opened){ cell.style.display="none"; destroyChart(id); return; }
+      if (opened){
+        cell.style.display="none"; destroyChart(id);
+        if (btn) btn.textContent = "More information";
+        return;
+      }
       document.querySelectorAll(".expanded-cell").forEach(n=>{ if (n!==cell){ n.style.display="none"; }});
       document.querySelectorAll("canvas[data-chart]").forEach(c=>{ const cid = Number(c.dataset.chart); destroyChart(cid); });
 
       cell.style.display="block";
+      if (btn) btn.textContent = "Less information";
+
       let factors = state.breakdownCache.get(id);
       if (!factors){
         const r = await fetch(`/api/customers/${id}/health`);
-        if (!r.ok){
-          cell.innerHTML = `<div class="mini">Failed to load breakdown (HTTP ${r.status}).</div>`;
-          return;
-        }
+        if (!r.ok){ cell.innerHTML = `<div class="mini">Failed to load breakdown (HTTP ${r.status}).</div>`; return; }
         const body = await r.json();
         factors = body.factors || {};
         state.breakdownCache.set(id, factors);
@@ -479,10 +510,8 @@
       history.replaceState(null, "", `#customer-${id}`);
     }
 
-    // ---- controls ----
-    document.getElementById("search").addEventListener("input", debounce(e=>{
-      state.q = e.target.value.trim(); applyFilters();
-    }, 150));
+    // controls
+    document.getElementById("search").addEventListener("input", debounce(e=>{ state.q = e.target.value.trim(); applyFilters(); }, 150));
     document.getElementById("segment").addEventListener("change", e=>{ state.segment = e.target.value; applyFilters(); });
     document.querySelectorAll(".risk-filter").forEach(b=>{
       b.addEventListener("click", ()=>{ document.querySelectorAll(".risk-filter").forEach(x=>x.classList.remove("active"));
@@ -504,9 +533,7 @@
       document.getElementById("order").textContent = state.order==="asc" ? "Asc" : "Desc";
       applyFilters();
     });
-    document.getElementById("page-size").addEventListener("change", e=>{
-      state.pageSize = Number(e.target.value); state.page = 1; renderPage();
-    });
+    document.getElementById("page-size").addEventListener("change", e=>{ state.pageSize = Number(e.target.value); state.page = 1; renderPage(); });
     document.getElementById("prev").addEventListener("click", ()=>{ state.page = Math.max(1, state.page-1); renderPage(); });
     document.getElementById("next").addEventListener("click", ()=>{ state.page = Math.min(Math.ceil(state.viewRows.length/state.pageSize), state.page+1); renderPage(); });
 
@@ -518,17 +545,10 @@
         [r.id, JSON.stringify(r.name), r.segment, JSON.stringify(humanSize(r.seats)), riskBucket(r.health_score||0), Math.round(r.health_score ?? 0)].join(",")
       )).join("\n");
       const blob = new Blob([csv], {type:"text/csv"});
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "customers.csv";
-      a.click();
-      URL.revokeObjectURL(a.href);
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "customers.csv"; a.click(); URL.revokeObjectURL(a.href);
     });
 
-    // ---- init ----
-    (async function init(){
-      await Promise.all([fetchAll(), loadTrendAndSummary()]);
-    })();
+    (async function init(){ await Promise.all([fetchAll(), loadTrendAndSummary()]); })();
   </script>
 </body>
 </html>
