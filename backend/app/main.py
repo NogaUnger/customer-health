@@ -32,4 +32,8 @@ def dashboard():
 # API routers
 app.include_router(customers.router, prefix="/api")
 app.include_router(events.router, prefix="/api")
-app.include_router(analytics.router, prefix="/api")  # <— adds /api/health/* endpoints
+app.include_router(analytics.router, prefix="/api")
+
+# app.include_router(customers.router)
+# app.include_router(events.router)
+# app.include_router(analytics.router)

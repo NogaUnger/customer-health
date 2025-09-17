@@ -6,6 +6,7 @@ from ..db import SessionLocal
 from ..models import Customer, Segment
 from ..scoring import compute_health_breakdown
 
+# router = APIRouter(prefix="/api/customers", tags=["customers"])
 router = APIRouter(prefix="/customers", tags=["customers"])
 
 # thresholds used in the dashboard

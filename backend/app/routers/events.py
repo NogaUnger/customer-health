@@ -16,7 +16,8 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from .. import models, schemas
 
-router = APIRouter(prefix="/api/customers", tags=["events"])
+# router = APIRouter(prefix="/api/customers", tags=["events"])
+router = APIRouter(prefix="/customers", tags=["events"])
 
 
 def _as_models_event_type(raw) -> models.EventType:
