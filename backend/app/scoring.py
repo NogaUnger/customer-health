@@ -35,9 +35,9 @@ def clamp(x: float, lo: float = 0.0, hi: float = 100.0) -> float:
 
 # Segment-specific assumptions (targets/penalties can be tuned)
 SEGMENT_PARAMS: Dict[Segment, Dict[str, float]] = {
-    Segment.enterprise: {"login_target_per_seat_30d": 0.15, "ticket_penalty_per_100_seats": 16.0},
-    Segment.smb:        {"login_target_per_seat_30d": 0.80, "ticket_penalty_per_100_seats": 10.0},
-    Segment.startup:    {"login_target_per_seat_30d": 1.20, "ticket_penalty_per_100_seats": 10.0},
+    Segment.enterprise: {"login_target_per_seat_30d": 0.10, "ticket_penalty_per_100_seats": 10.0},
+    Segment.smb:        {"login_target_per_seat_30d": 0.70, "ticket_penalty_per_100_seats": 10.0},
+    Segment.startup:    {"login_target_per_seat_30d": 1.10, "ticket_penalty_per_100_seats": 10.0},
 }
 
 # Overall factor weights (sum to 1.0)
@@ -71,7 +71,7 @@ def score_feature_adoption(unique_features_30d: int) -> float:
     Map count of distinct features used in 30d to 0..100.
     Using a soft target of 6 distinct features → 100.
     """
-    target = 6.0
+    target = 2.0
     return clamp(100.0 * (float(unique_features_30d) / target))
 
 

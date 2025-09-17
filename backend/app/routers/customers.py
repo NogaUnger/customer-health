@@ -10,8 +10,8 @@ from ..scoring import compute_health_breakdown
 router = APIRouter(prefix="/customers", tags=["customers"])
 
 # thresholds used in the dashboard
-RISK_RED = 60
-RISK_GREEN = 80
+RISK_RED = 50
+RISK_GREEN = 70
 
 def risk_bucket(score: float) -> str:
     if score < RISK_RED:
