@@ -35,7 +35,7 @@
     .badges{display:flex;gap:6px;align-items:center;flex-wrap:nowrap; white-space: nowrap;}
     .badge{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:#fff}
     .seg{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#eef2ff;color:#334155}
-    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px; table-layout: fixed}
     thead th{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:0 12px}
     tbody tr.data-row{background:linear-gradient(180deg,var(--row),var(--rowAlt));border:1px solid var(--border)}
     tbody tr td{padding:12px}
@@ -47,8 +47,31 @@
     .score-pill.risk-low{background:var(--risk);color:#fff;border-color:var(--risk)}
     .actions{display:flex;gap:8px}
     .expand{cursor:pointer}
-    .expanded-cell{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:-4px}
-    .expanded-grid{display:grid;grid-template-columns:420px 1fr;gap:16px}
+    /* remove negative margin, keep full width and spacing */
+    .expanded-cell{
+      display:block;
+      width:100%;
+      box-sizing:border-box;
+      background:#f8fafc;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px;
+      margin-top:8px;                   /* was -4px */
+    }
+
+    /* prevent the donut/breakdown from squashing */
+    .expanded-grid{
+      display:grid;
+      grid-template-columns:minmax(320px, 440px) 1fr;  /* left column won’t go below 320px */
+      gap:16px;
+      align-items:start;
+    }
+
+    /* make the canvas honor container width/height */
+    .expanded-cell canvas.responsive{
+      width:100% !important;
+      height:260px !important;          /* consistent size */
+    }
     .mini{font-size:12px;color:var(--muted)}
     .empty, .error, .loading{color:var(--muted);padding:16px;text-align:center}
     .pagination{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}
@@ -408,6 +431,7 @@
         $tbody.appendChild(tr);
 
         const exp = document.createElement("tr");
+        exp.className = "expanded-row";                               // <-- add
         exp.id = `expand-${r.id}`;
         exp.innerHTML = `<td colspan="7"><div class="expanded-cell" style="display:none"></div></td>`;
         $tbody.appendChild(exp);
@@ -440,7 +464,7 @@
       cell.innerHTML = `
         <div class="expanded-grid">
           <div>
-            <canvas id="donut-${id}" data-chart="${id}" height="220"></canvas>
+            <canvas id="donut-${id}" class="responsive" data-chart="${id}" height="220"></canvas>
           </div>
           <div>
             ${labels.map((k,i)=>`
