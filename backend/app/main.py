@@ -6,6 +6,9 @@ from contextlib import asynccontextmanager
 from .db import Base, engine, SessionLocal
 from .seed import seed_if_needed
 from .routers import customers, events
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,6 +26,12 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(customers.router, prefix="/api")
 app.include_router(events.router, prefix="/api")
+
+# serve the dashboard HTML
+@app.get("/api/dashboard", response_class=HTMLResponse)
+def dashboard():
+    # path is relative to the container working dir (/code)
+    return FileResponse("app/static/dashboard.html")
 
 @app.get("/")
 def index():
