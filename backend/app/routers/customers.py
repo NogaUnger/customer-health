@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import List, Optional, Literal
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import asc, desc
 
@@ -72,3 +72,19 @@ def list_customers(
     if order == "desc":
         items.reverse()
     return items
+
+
+@router.get("/{customer_id}/health")
+def customer_health(customer_id: int, db: Session = Depends(get_db)) -> dict:
+    """
+    Return the health breakdown for a single customer.
+    Shape: {"total": float, "factors": {...}}
+    """
+    c = db.query(Customer).get(customer_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    try:
+        return compute_health_breakdown(db, customer_id)
+    except Exception as e:
+        # Harden against any unexpected scoring edge cases
+        raise HTTPException(status_code=500, detail=f"Health computation failed: {e}")
