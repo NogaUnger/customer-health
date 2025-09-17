@@ -128,16 +128,19 @@ def score_api_usage_trend(recent_sum: float, prev_sum: float) -> float:
 
 # ---------- DB-backed breakdown (INTEGRATION-TESTED) ----------
 
-def compute_health_breakdown(db: Session, customer_id: int) -> Dict[str, float | Dict[str, float]]:
-    """
-    Query recent activity for the customer and compute each factor + total.
-    Returns: {"total": float, "factors": {<factor>: float}}
-    """
+def compute_health_breakdown(
+    db: Session,
+    customer_id: int,
+    now: datetime | None = None,   # <-- new optional parameter
+) -> Dict[str, float | Dict[str, float]]:
+    """Compute factors & total; if `now` is provided, windows are relative to it."""
+    if now is None:
+        now = datetime.utcnow()
+
     c: Customer | None = db.query(Customer).get(customer_id)
     if not c:
         return {"total": 0.0, "factors": {k: 0.0 for k in WEIGHTS}}
 
-    now = datetime.utcnow()
     d30  = now - timedelta(days=30)
     d7   = now - timedelta(days=7)
     d14  = now - timedelta(days=14)
@@ -145,47 +148,33 @@ def compute_health_breakdown(db: Session, customer_id: int) -> Dict[str, float |
 
     # 30d logins
     total_logins_30d = db.query(func.count(Event.id)).filter(
-        Event.customer_id == c.id,
-        Event.type == EventType.login,
-        Event.ts >= d30,
+        Event.customer_id == c.id, Event.type == EventType.login, Event.ts >= d30
     ).scalar() or 0
 
     # 30d unique features
     unique_features_30d = db.query(func.count(func.distinct(Event.feature_key))).filter(
-        Event.customer_id == c.id,
-        Event.type == EventType.feature_use,
-        Event.ts >= d30,
+        Event.customer_id == c.id, Event.type == EventType.feature_use, Event.ts >= d30
     ).scalar() or 0
 
-    # 30d support tickets
+    # 30d tickets
     tickets_30d = db.query(func.count(Event.id)).filter(
-        Event.customer_id == c.id,
-        Event.type == EventType.support_ticket_opened,
-        Event.ts >= d30,
+        Event.customer_id == c.id, Event.type == EventType.support_ticket_opened, Event.ts >= d30
     ).scalar() or 0
 
-    # 180d invoices → list[(type_str, ts)]
+    # 180d invoices (type + ts)
     inv_rows = db.query(Event.type, Event.ts).filter(
         Event.customer_id == c.id,
         Event.type.in_([EventType.invoice_paid, EventType.invoice_late]),
-        Event.ts >= d180,
+        Event.ts >= d180
     ).all()
-    invoices: List[Tuple[str, datetime]] = [
-        ("invoice_paid" if t == EventType.invoice_paid else "invoice_late", ts)
-        for (t, ts) in inv_rows
-    ]
+    invoices = [("invoice_paid" if t == EventType.invoice_paid else "invoice_late", ts) for (t, ts) in inv_rows]
 
-    # API usage sums: last 7d vs previous 7d
+    # API usage sums
     recent_sum = db.query(func.coalesce(func.sum(Event.value), 0)).filter(
-        Event.customer_id == c.id,
-        Event.type == EventType.api_call,
-        Event.ts >= d7,
+        Event.customer_id == c.id, Event.type == EventType.api_call, Event.ts >= d7
     ).scalar() or 0
     prev_sum = db.query(func.coalesce(func.sum(Event.value), 0)).filter(
-        Event.customer_id == c.id,
-        Event.type == EventType.api_call,
-        Event.ts >= d14,
-        Event.ts <  d7,
+        Event.customer_id == c.id, Event.type == EventType.api_call, Event.ts >= d14, Event.ts < d7
     ).scalar() or 0
 
     factors = {
@@ -195,6 +184,5 @@ def compute_health_breakdown(db: Session, customer_id: int) -> Dict[str, float |
         "invoice_timeliness":    score_invoice_timeliness(invoices),
         "api_usage_trend":       score_api_usage_trend(float(recent_sum), float(prev_sum)),
     }
-
-    total = sum(factors[name] * WEIGHTS[name] for name in WEIGHTS)
+    total = sum(factors[k] * WEIGHTS[k] for k in WEIGHTS)
     return {"total": clamp(total), "factors": factors}

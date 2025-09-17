@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from .db import SessionLocal
 from .seed import seed_if_needed
 from .routers import customers, events
-
+from .routers.analytics import router as analytics_router
 
 # Lifespan handler replaces @app.on_event("startup")
 @asynccontextmanager
@@ -26,6 +26,7 @@ app = FastAPI(title="Customer Health API", lifespan=lifespan)
 # Routers
 app.include_router(customers.router)
 app.include_router(events.router)
+app.include_router(analytics_router)
 
 
 # Root page with quick links
