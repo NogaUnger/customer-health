@@ -15,7 +15,20 @@
     body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
     header{padding:28px 20px 6px}
     h1{margin:0;font-size:42px;letter-spacing:.3px;text-align:center}
-    .sub{color:var(--muted);max-width:980px;line-height:1.5;margin:10px auto 0;text-align:center}
+    .sub{
+      color: var(--muted);
+      max-width: 980px;
+      line-height: 1.6;
+      margin: 12px auto 0;
+      text-align: center;
+      font-size: 22px;        /* ⬅️ increase size */
+      font-weight: 600;       /* optional: make it a bit bolder */
+    }
+
+    /* keep it readable on small screens */
+    @media (max-width: 640px){
+      .sub{ font-size: 18px; }
+    }
     .shell{padding:10px 20px 40px}
     .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
     .controls{
@@ -109,7 +122,7 @@
   <header>
     <h1>Customer Health Dashboard</h1>
     <p class="sub">
-      <b>All you need to know, all in one score</b>
+      <b>All you need to know in one score</b>
     </p>
     <p class="sub">
       Scores blend <b>Login Frequency</b>, <b>Feature Adoption</b>, <b>Ticket Volume</b>,
