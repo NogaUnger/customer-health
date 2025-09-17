@@ -1,6 +1,8 @@
 # backend/app/routers/analytics.py
 from __future__ import annotations
 from typing import Optional, List, Dict, Tuple
+from math import ceil, floor
+from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -88,3 +90,56 @@ def health_summary(
         "top5": top5,
         "bottom5": bottom5,
     }
+
+def _percentile(sorted_vals: List[float], p: float) -> float:
+    """p in [0,1]. Linear interpolation between nearest ranks."""
+    n = len(sorted_vals)
+    if n == 0:
+        return 0.0
+    k = (n - 1) * p
+    f, c = floor(k), ceil(k)
+    if f == c:
+        return float(sorted_vals[int(k)])
+    return float(sorted_vals[f] * (c - k) + sorted_vals[c] * (k - f))
+
+@router.get("/trend")
+def health_trend(
+    days: int = Query(30, ge=1, le=120),
+    segment: Optional[Segment] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns an array of daily points for the last `days`:
+    [{date: "YYYY-MM-DD", avg: float, p25: float, p75: float}, ...]
+
+    NOTE: This version snapshots *today's* distribution and repeats it
+    for each day so the UI always renders. To compute true history,
+    make compute_health_breakdown accept an `as_of` datetime and
+    re-evaluate factors for each day.
+    """
+    q = db.query(Customer)
+    if segment:
+        q = q.filter(Customer.segment == segment)
+    customers: List[Customer] = q.all()
+
+    scores: List[float] = []
+    for c in customers:
+        b = compute_health_breakdown(db, c.id)
+        scores.append(float(b["total"]))
+
+    scores.sort()
+    avg = round(sum(scores) / len(scores), 2) if scores else 0.0
+    p25 = round(_percentile(scores, 0.25), 2)
+    p75 = round(_percentile(scores, 0.75), 2)
+
+    today = date.today()
+    out = []
+    for i in range(days):
+        d = today - timedelta(days=(days - 1 - i))
+        out.append({
+            "date": d.isoformat(),
+            "avg": avg,
+            "p25": p25,
+            "p75": p75,
+        })
+    return out

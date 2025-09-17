@@ -32,7 +32,7 @@
     .btn:hover{background:#f8fafc}
     .btn.ghost{background:transparent}
     .btn.active{outline:2px solid var(--accent)}
-    .badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .badges{display:flex;gap:6px;align-items:center;flex-wrap:nowrap; white-space: nowrap;}
     .badge{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:#fff}
     .seg{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#eef2ff;color:#334155}
     table{width:100%;border-collapse:separate;border-spacing:0 8px}
@@ -72,7 +72,7 @@
     <h1>Customer Health</h1>
     <p class="sub">
       Scores blend <b>Login Frequency</b>, <b>Feature Adoption</b>, <b>Ticket Volume</b>,
-      <b>Invoice Timeliness</b> (last <b>120 days</b>), and <b>API Usage Trend</b>. Higher is better (0–100).
+      <b>Invoice Timeliness</b>, and <b>API Usage Trend</b>. Higher is better (0–100).
     </p>
   </header>
 
@@ -84,7 +84,7 @@
         <li><b>Login Frequency</b>: share of active days (size/segment-normalized).</li>
         <li><b>Feature Adoption</b>: # of distinct key features used in last 30 days.</li>
         <li><b>Ticket Volume</b>: fewer tickets in last 30 days → higher score (normalized).</li>
-        <li><b>Invoice Timeliness</b>: on-time vs late invoices over the last <b>120 days</b>.</li>
+        <li><b>Invoice Timeliness</b>: on-time vs late invoices over the last .</li>
         <li><b>API Usage Trend</b>: last 7 days vs the 7 days before (up=better).</li>
       </ul>
     </div>
@@ -280,7 +280,7 @@
           <div>Login: <b>${Math.round(a.login_frequency||0)}%</b></div>
           <div>Features: <b>${Math.round(a.feature_adoption||0)}%</b></div>
           <div>Tickets: <b>${Math.round(a.support_ticket_volume||0)}%</b></div>
-          <div>Invoices (120d): <b>${Math.round(a.invoice_timeliness||0)}%</b></div>
+          <div>Invoices: <b>${Math.round(a.invoice_timeliness||0)}%</b></div>
           <div>API trend: <b>${Math.round(a.api_usage_trend||0)}%</b></div>
         `;
 
@@ -431,7 +431,7 @@
         login_frequency:"Login Frequency",
         feature_adoption:"Feature Adoption",
         support_ticket_volume:"Ticket Volume",
-        invoice_timeliness:"Invoice Timeliness (120d)",
+        invoice_timeliness:"Invoice Timeliness",
         api_usage_trend:"API Usage Trend"
       };
       const data = labels.map(k => Math.round(factors[k] ?? 0));
