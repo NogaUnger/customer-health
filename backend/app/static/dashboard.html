@@ -481,6 +481,7 @@
 
     function destroyChart(id){ const ch = state.charts.get(id); if (ch){ ch.destroy(); state.charts.delete(id); } }
 
+
     function renderBreakdown(id, cell, factors){
       const labels = ["login_frequency","feature_adoption","support_ticket_volume","invoice_timeliness","api_usage_trend"];
       const pretty = {
@@ -505,26 +506,25 @@
             </div>
           </div>
 
-          <!-- RIGHT: bars + values on a single 3-col grid so headers line up perfectly -->
+          <!-- RIGHT: labels + bars + values share the same 3-col grid -->
           <div>
-            <!-- headers -->
+            <!-- HEADERS (now: left over names, right over numbers) -->
             <div style="
               display:grid;
               grid-template-columns:280px 1fr 80px;
               gap:10px;
               align-items:end;
-              line-height:1.1;
               margin:0 0 8px 0">
-              <div></div>
-              <div style="justify-self:center;font-weight:700;font-size:16px;white-space:nowrap">
+              <div style="font-weight:700;font-size:16px;white-space:nowrap">
                 Percentage of each component
               </div>
+              <div></div>
               <div style="justify-self:end;font-weight:700;font-size:16px;white-space:nowrap">
                 Customer’s score
               </div>
             </div>
 
-            <!-- rows -->
+            <!-- ROWS -->
             ${labels.map((k,i)=>`
               <div style="display:grid;grid-template-columns:280px 1fr 80px;gap:10px;align-items:center;margin:8px 0">
                 <div style="color:#475569">
@@ -544,24 +544,18 @@
         </div>
       `;
 
+      // Donut
       const ctx = document.getElementById(`donut-${id}`).getContext("2d");
       const chart = new Chart(ctx, {
         type: "doughnut",
-        data: {
-          labels: labels.map(k=>pretty[k]),
-          datasets: [{ data: contrib, borderWidth: 0 }]
-        },
+        data: { labels: labels.map(k=>pretty[k]), datasets: [{ data: contrib, borderWidth: 0 }] },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
             legend:{ position:"bottom" },
             tooltip:{ enabled:true },
-            datalabels:{
-              color:"#111",
-              formatter:(v)=> (v && v>0) ? Math.round(v) : null,
-              font:{ weight:"700" }
-            }
+            datalabels:{ color:"#111", formatter:(v)=> (v && v>0) ? Math.round(v) : null, font:{ weight:"700" } }
           },
           cutout: "62%"
         },
@@ -570,7 +564,6 @@
       state.charts.set(id, chart);
     }
 
-    
 
 
     async function toggleExpand(id, btn) {
