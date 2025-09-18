@@ -52,8 +52,22 @@ Records a **new event** for a customer
 ```
 Allowed fields per type:
 login → no feature_key, no value.
+Example:
+{
+  "type": "login"
+}
 feature_use → requires feature_key, forbids value.
+Example:
+{
+  "type": "feature_use", 
+  "feature_key": "dashboard_view"
+}
 api_call → requires numeric value, forbids feature_key.
+Example:
+{
+  "type": "api_call",
+  "value": 150
+}
 support_ticket_opened → no extras.
 invoice_paid → no extras.
 invoice_late → no extras.
