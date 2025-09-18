@@ -38,8 +38,7 @@ Hot reload is enabled for the backend container. Edit files under backend/app/ a
 
 Run all tests with coverage threshold (inside Docker):
 
-docker compose run --rm backend \
-  pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc --cov-fail-under=80
+docker compose run --rm backend pytest -q --cov=app --cov-report=term-missing --cov-config=.coveragerc --cov-fail-under=80
 
 
 What’s covered:
